@@ -1,4 +1,4 @@
-// Panel "Chapter Dibaca" (auto-bookmark & manual bookmark).
+// Panel "Chapter Dibaca" (auto-bookmark riwayat membaca).
 import { state } from "./state.js";
 import { api } from "./api.js";
 import { escapeHtml } from "./util.js";
@@ -54,7 +54,7 @@ export function renderBookmarks() {
     list.innerHTML = `
       <div class="empty-state">
         <p>Belum ada chapter dibaca.</p>
-        <p class="hint">Buka chapter mana saja — otomatis tercatat di sini, atau klik tombol <b>🏷️ Tandai</b> untuk catatan manual.</p>
+        <p class="hint">Buka chapter mana saja — otomatis tercatat di riwayat bacaan ini.</p>
       </div>`;
     return;
   }
@@ -109,42 +109,12 @@ export function renderBookmarks() {
         renderBookmarks();
         const { renderChapterCards } = await import("./ui-reader.js");
         renderChapterCards();
-        showToast("Bookmark dihapus");
+        showToast("Dihapus dari daftar baca");
       } catch (err) {
         showToast(err.message, "error");
       }
     };
 
     list.appendChild(div);
-  }
-}
-
-export async function addOrEditBookmark() {
-  if (!state.activeNovelId || !state.activeChapterRef) {
-    showToast("Pilih chapter terlebih dahulu untuk menandai", "info");
-    return;
-  }
-  const ch = state.chapters.find(c => c.ref === state.activeChapterRef);
-  if (!ch) return;
-
-  const existing = state.bookmarks.find(b => b.chapter_index === ch.index);
-  const defaultLabel = existing ? existing.label : ch.title;
-  const label = prompt("Beri catatan / label bookmark untuk chapter ini:", defaultLabel || `Chapter ${ch.index + 1}`);
-
-  if (label === null) return; // User membatalkan
-
-  try {
-    const prog = await api.post(`/api/mark-read?novel_id=${encodeURIComponent(state.activeNovelId)}`, {
-      chapter_index: ch.index,
-      label: label.trim(),
-    });
-    state.bookmarks = prog.bookmarks || [];
-    state.readSet = new Set(state.bookmarks.map(b => b.chapter_index));
-    renderBookmarks();
-    const { renderChapterCards } = await import("./ui-reader.js");
-    renderChapterCards();
-    showToast("Bookmark berhasil disimpan!");
-  } catch (e) {
-    showToast(e.message, "error");
   }
 }

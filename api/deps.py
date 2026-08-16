@@ -19,7 +19,7 @@ def get_library_roots() -> List[str]:
     if not roots:
         raise HTTPException(
             status_code=404,
-            detail="Library root belum diset. Buka Set Folder (UI) atau isi 'library_roots' di config.json.",
+            detail="Library root belum diset. Atur 'library_roots' di config.json.",
         )
     return roots
 
@@ -29,7 +29,7 @@ def get_library_root() -> str:
     if not root:
         raise HTTPException(
             status_code=404,
-            detail="Library root belum diset. Buka Set Folder (UI) atau isi 'library_roots' di config.json.",
+            detail="Library root belum diset. Atur 'library_roots' di config.json.",
         )
     return root
 

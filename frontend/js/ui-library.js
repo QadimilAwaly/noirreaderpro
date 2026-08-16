@@ -52,10 +52,13 @@ export function renderNovels() {
 
 export async function selectNovel(novel) {
   setActiveNovel(novel);
+  try {
+    localStorage.setItem("readerpro_last_novel_id", novel.id);
+  } catch {}
   renderNovels();
 
-  // On small screens, transition from novel drawer to chapter drawer
-  if (window.innerWidth <= 980) {
+  // On small screens, if called by user click from novel drawer, transition to chapter drawer.
+  if (window.innerWidth <= 980 && document.body.classList.contains("show-mobile-novels")) {
     document.body.classList.remove("show-mobile-novels");
     document.body.classList.add("show-mobile-chapters");
     const sidebarBackdrop = document.getElementById("sidebar-backdrop");
@@ -110,17 +113,30 @@ export async function loadNovels() {
     if (state.novels.length) {
       const folderNote = state.libraryRoots.length > 1 ? ` · ${state.libraryRoots.length} folder` : "";
       setStatus(`Siap · ${state.novels.length} novel${folderNote}`);
-      // Auto-select first novel on desktop if none selected
-      if (!state.activeNovelId && window.innerWidth > 980) {
-        selectNovel(state.novels[0]);
+
+      // Otomatis load last novel yang dibaca (atau novel pertama) di mobile dan desktop
+      let targetNovel = null;
+      try {
+        const lastNovelId = localStorage.getItem("readerpro_last_novel_id");
+        if (lastNovelId) {
+          targetNovel = state.novels.find(n => n.id === lastNovelId);
+        }
+      } catch {}
+
+      if (!targetNovel) {
+        targetNovel = state.novels[0];
+      }
+
+      if (targetNovel) {
+        await selectNovel(targetNovel);
       }
     } else {
       if (elNovelEmpty) elNovelEmpty.hidden = false;
-      setStatus("Perlu Set Folder");
+      setStatus("Cek config.json");
     }
   } catch (e) {
     if (elNovelEmpty) elNovelEmpty.hidden = false;
-    setStatus("Perlu Set Folder");
+    setStatus("Cek config.json");
     showToast(e.message, "error");
   }
 }

@@ -31,8 +31,6 @@
 
     <div class="topbar-actions">
       <span id="status-pill" class="status-pill" aria-live="polite">Siap</span>
-      <button id="btn-zen-mode" class="icon-btn" title="Mode Fokus Baca Penuh (F)" aria-label="Mode Fokus Baca">⛶</button>
-      <button id="btn-set-folder" class="btn" title="Set folder koleksi novel (S)">📁 Set Folder</button>
       <button id="btn-toggle-theme" class="icon-btn" title="Ganti tema terang/gelap (T)" aria-label="Ganti tema">🌓</button>
       <button id="btn-settings" class="icon-btn" title="Pengaturan tampilan (P)" aria-label="Pengaturan tampilan" aria-haspopup="dialog" aria-expanded="false">⚙</button>
     </div>
@@ -52,8 +50,7 @@
       <div id="novel-list" class="scroll-list"></div>
       <div id="novel-empty" class="empty-state" hidden>
         <p>Belum ada koleksi.</p>
-        <p class="hint">Klik <b>Set Folder</b> untuk menunjuk ke folder <code>Novel_Library</code>
-        atau direktori berisi file <code>.txt</code> / <code>.md</code> / <code>.epub</code> kamu.</p>
+        <p class="hint">Atur path folder koleksi di <code>config.json</code> (mis. <code>"library_roots": ["E:\\Novel_Library"]</code>).</p>
       </div>
     </aside>
 
@@ -92,7 +89,6 @@
         <div class="spacer"></div>
 
         <div class="reader-action-group">
-          <button id="btn-add-bookmark" class="btn-sm" title="Tandai catatan / Bookmark chapter ini (M)">🏷️ Tandai</button>
           <label class="toggle" id="orig-toggle-wrap" title="Tampilkan teks asli di bawah terjemahan">
             <input type="checkbox" id="chk-original" /> <span>Teks asli</span>
           </label>
