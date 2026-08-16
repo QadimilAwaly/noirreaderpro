@@ -1,0 +1,40 @@
+# Python compiled
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtualenv
+.venv/
+venv/
+
+# Temp / lock
+*.tmp
+.tmp_*
+*.log
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Hermes Agent personal config (NOT project files)
+.hermes/
+
+# Personal pi config (NOT project files)
+.pi/
+
+# Device-specific config override — per-device storage, never share
+device_config.json
+
+# Test artifacts (leave test source code; ignore only generated caches)
+.pytest_cache/
+
+# Optional: frontend build artifacts (uncomment if bundler used later)
+# node_modules/
+# dist/
+# build/
+
+# Secrets / env (preventive — none present now, but guard for future)
+.env
+*.env
+.env.*

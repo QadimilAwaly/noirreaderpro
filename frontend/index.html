@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noir Reader Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=2" />
+  <link rel="stylesheet" href="/static/css/layout.css?v=2" />
+</head>
+<body class="theme-light">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button id="btn-toggle-novels" class="btn-sidebar-toggle" title="Buka/Tutup Koleksi Novel (N)" aria-label="Buka/Tutup Koleksi Novel">
+        <span class="btn-icon">📚</span>
+        <span class="btn-label">Koleksi</span>
+      </button>
+      <button id="btn-toggle-chapters" class="btn-sidebar-toggle" title="Buka/Tutup Daftar Chapter (C)" aria-label="Buka/Tutup Daftar Chapter">
+        <span class="btn-icon">📑</span>
+        <span class="btn-label">Chapter</span>
+      </button>
+    </div>
+
+    <div class="brand">
+      <span class="logo">📖</span>
+      <div class="brand-text">
+        <h1>Noir Reader Pro</h1>
+        <span class="brand-sub" id="brand-sub">Pustaka lokal</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <span id="status-pill" class="status-pill" aria-live="polite">Siap</span>
+      <button id="btn-zen-mode" class="icon-btn" title="Mode Fokus Baca Penuh (F)" aria-label="Mode Fokus Baca">⛶</button>
+      <button id="btn-set-folder" class="btn" title="Set folder koleksi novel (S)">📁 Set Folder</button>
+      <button id="btn-toggle-theme" class="icon-btn" title="Ganti tema terang/gelap (T)" aria-label="Ganti tema">🌓</button>
+      <button id="btn-settings" class="icon-btn" title="Pengaturan tampilan (P)" aria-label="Pengaturan tampilan" aria-haspopup="dialog" aria-expanded="false">⚙</button>
+    </div>
+  </header>
+
+  <!-- Backdrop overlay for mobile sidebars -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+  <div class="app-body">
+    <!-- Kolom 1: Novel (Collapsible) -->
+    <aside class="col col-novels" id="col-novels" aria-label="Daftar koleksi novel">
+      <div class="col-head">
+        <h2>Koleksi</h2>
+        <span class="count-pill" id="novel-count" title="Jumlah novel">0</span>
+        <button id="btn-collapse-novels" class="icon-btn-sm btn-collapse" title="Sembunyikan panel koleksi (N)" aria-label="Sembunyikan panel koleksi">«</button>
+      </div>
+      <div id="novel-list" class="scroll-list"></div>
+      <div id="novel-empty" class="empty-state" hidden>
+        <p>Belum ada koleksi.</p>
+        <p class="hint">Klik <b>Set Folder</b> untuk menunjuk ke folder <code>Novel_Library</code>
+        atau direktori berisi file <code>.txt</code> / <code>.md</code> / <code>.epub</code> kamu.</p>
+      </div>
+    </aside>
+
+    <!-- Kolom 2: Chapter (Collapsible) -->
+    <aside class="col col-chapters" id="col-chapters" aria-label="Daftar chapter novel">
+      <div class="col-head">
+        <h2 id="chapter-novel-title">Chapter</h2>
+        <span class="count-pill" id="chapter-count" title="Jumlah chapter">0</span>
+        <button id="btn-collapse-chapters" class="icon-btn-sm btn-collapse" title="Sembunyikan panel chapter (C)" aria-label="Sembunyikan panel chapter">«</button>
+      </div>
+      <div class="chapter-tools">
+        <div class="search-wrap">
+          <input id="chapter-search" class="search" type="search" placeholder="Cari chapter…" autocomplete="off" aria-label="Cari chapter" />
+          <button id="btn-clear-search" class="btn-clear" title="Bersihkan pencarian" aria-label="Bersihkan pencarian" hidden>✕</button>
+        </div>
+        <div id="chapter-search-info" class="search-info" hidden></div>
+      </div>
+      <div id="chapter-list" class="scroll-list chapter-cards">
+        <div class="empty-state">
+          <p>Pilih novel di sebelah kiri untuk melihat daftar chapter.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Kolom 3: Reader (Primary View) -->
+    <main class="col col-reader" id="reader" aria-label="Pembaca chapter">
+      <div id="reader-toolbar" class="reader-toolbar" hidden>
+        <div class="reader-nav-group">
+          <button id="btn-reader-novels" class="btn-sm btn-nav-toggle" title="Buka panel koleksi novel (N)">📚 Koleksi</button>
+          <button id="btn-reader-chapters" class="btn-sm btn-nav-toggle" title="Buka panel daftar chapter (C)">📑 Chapter</button>
+          <button id="btn-prev" class="icon-btn" title="Chapter sebelumnya (←)" aria-label="Chapter sebelumnya" disabled>‹</button>
+          <span id="reader-pos" class="reader-pos" aria-live="polite">—</span>
+          <button id="btn-next" class="icon-btn" title="Chapter berikutnya (→)" aria-label="Chapter berikutnya" disabled>›</button>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="reader-action-group">
+          <button id="btn-add-bookmark" class="btn-sm" title="Tandai catatan / Bookmark chapter ini (M)">🏷️ Tandai</button>
+          <label class="toggle" id="orig-toggle-wrap" title="Tampilkan teks asli di bawah terjemahan">
+            <input type="checkbox" id="chk-original" /> <span>Teks asli</span>
+          </label>
+          <button id="btn-bookmarks" class="btn-sm" title="Daftar chapter dibaca (B)" aria-label="Daftar chapter dibaca" aria-haspopup="dialog" aria-expanded="false">⭐ <span id="bm-count">0</span></button>
+        </div>
+      </div>
+      <article id="reader-content" class="reader-content" tabindex="0" aria-label="Isi teks bacaan">
+        <div class="reader-placeholder">
+          <div class="ph-icon">📚</div>
+          <p>Pilih sebuah novel di panel koleksi untuk mulai membaca.</p>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <!-- Backdrop overlay for settings and bookmarks drawers -->
+  <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+
+  <!-- Settings drawer -->
+  <div id="settings-panel" class="drawer" hidden aria-label="Pengaturan tampilan" role="dialog" aria-modal="true">
+    <div class="drawer-head">
+      <h2>Pengaturan Tampilan</h2>
+      <button id="btn-close-settings" class="icon-btn" title="Tutup pengaturan (Esc)" aria-label="Tutup pengaturan">✕</button>
+    </div>
+    <div class="drawer-body">
+      <label class="ctrl">
+        <span>Ukuran Font: <b id="val-font">16</b> px</span>
+        <input type="range" id="rng-font" min="13" max="32" step="1" value="16" aria-label="Ukuran font" />
+      </label>
+      <label class="ctrl">
+        <span>Jarak Baris: <b id="val-spacing">1.7</b></span>
+        <input type="range" id="rng-spacing" min="1.2" max="2.8" step="0.1" value="1.7" aria-label="Jarak baris" />
+      </label>
+      <label class="ctrl">
+        <span>Lebar Baca: <b id="val-width">720</b> px</span>
+        <input type="range" id="rng-width" min="480" max="1200" step="20" value="720" aria-label="Lebar baca" />
+      </label>
+      <label class="ctrl">
+        <span>Indentasi Paragraf: <b id="val-indent">28</b> px</span>
+        <input type="range" id="rng-indent" min="0" max="64" step="2" value="28" aria-label="Indentasi paragraf" />
+      </label>
+      <label class="ctrl">
+        <span>Tema Tampilan</span>
+        <select id="sel-theme" class="select" aria-label="Pilih tema tampilan">
+          <option value="light">Terang (Soft Noir)</option>
+          <option value="dark">Gelap (Night Noir)</option>
+        </select>
+      </label>
+      <p class="hint">Perubahan disimpan otomatis.</p>
+    </div>
+  </div>
+
+  <!-- Bookmarks drawer -->
+  <div id="bookmarks-panel" class="drawer" hidden aria-label="Chapter dibaca" role="dialog" aria-modal="true">
+    <div class="drawer-head">
+      <h2>Chapter Dibaca</h2>
+      <button id="btn-close-bookmarks" class="icon-btn" title="Tutup bookmark (Esc)" aria-label="Tutup bookmark">✕</button>
+    </div>
+    <div id="bookmark-list" class="drawer-body bm-list"></div>
+  </div>
+
+  <!-- Accessible Toast Feedback -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="/static/js/main.js?v=2"></script>
+</body>
+</html>
