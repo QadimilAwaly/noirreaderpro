@@ -51,6 +51,9 @@ if (elClearSearch) {
 }
 
 export async function loadChapters(novelId) {
+  if (novelId) {
+    state.activeNovelId = novelId;
+  }
   setStatus("Memuat chapter…");
   if (elChapterTitle) elChapterTitle.textContent = state.activeNovelTitle || "Chapter";
   if (elChapterList) {
@@ -173,6 +176,11 @@ export async function openChapter(ref, isResume = false) {
   const ch = state.chapters.find(c => c.ref === ref);
   if (!ch) return;
 
+  const novelId = ch.novel_id || state.activeNovelId;
+  if (novelId) {
+    state.activeNovelId = novelId;
+  }
+
   state.activeChapterRef = ref;
   renderChapterCards();
   setStatus("Memuat…");
@@ -186,7 +194,7 @@ export async function openChapter(ref, isResume = false) {
   }
 
   try {
-    const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(state.activeNovelId)}&ref=${encodeURIComponent(ref)}`);
+    const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(ref)}`);
     state.currentChapterData = data;
 
     renderContent(data);
@@ -229,9 +237,12 @@ export async function openChapter(ref, isResume = false) {
 }
 
 async function markRead(ch) {
+  const novelId = ch.novel_id || state.activeNovelId;
+  if (!novelId) return;
+
   try {
     const prog = await api.post(
-      `/api/mark-read?novel_id=${encodeURIComponent(state.activeNovelId)}`,
+      `/api/mark-read?novel_id=${encodeURIComponent(novelId)}`,
       { chapter_index: ch.index, label: ch.title }
     );
     state.bookmarks = prog.bookmarks || [];

@@ -11,6 +11,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 import uvicorn
 from core.config import BASE_DIR, DEFAULT_HOST, DEFAULT_PORT
@@ -21,6 +24,20 @@ from api.router_progress import router as progress_router
 from api.router_settings import router as settings_router
 
 app = FastAPI(title="Noir Reader Pro", version="1.0.0")
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        # Cegah browser caching pada file statis dan HTML agar pembaruan JS selalu instan
+        if request.url.path.startswith("/static/") or request.url.path == "/":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
+app.add_middleware(NoCacheMiddleware)
 
 # API routers
 app.include_router(library_router)
@@ -35,7 +52,14 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND)), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse(str(FRONTEND / "index.html"))
+    return FileResponse(
+        str(FRONTEND / "index.html"),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/health")

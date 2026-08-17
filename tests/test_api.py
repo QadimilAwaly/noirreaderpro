@@ -13,6 +13,13 @@ def test_health_check():
     assert res.json() == {"status": "ok"}
 
 
+def test_no_cache_middleware_headers():
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "no-cache" in res.headers.get("cache-control", "")
+    assert "no-store" in res.headers.get("cache-control", "")
+
+
 def test_settings_roundtrip(tmp_path: Path, monkeypatch):
     test_settings_file = tmp_path / "test_settings.json"
     import api.router_settings
@@ -128,6 +135,15 @@ def test_multi_folder_library_api(tmp_path: Path, monkeypatch):
     content_res = client.get(f"/api/chapter?novel_id={beta_novel['id']}&ref=Chapter_01.txt")
     assert content_res.status_code == 200
     assert "Isi Beta." in content_res.json()["translation"]
+
+    # Fallback test: Read chapter when novel_id is "null", "undefined", or missing
+    fallback_res1 = client.get("/api/chapter?novel_id=null&ref=Chapter_01.txt")
+    assert fallback_res1.status_code == 200
+    assert fallback_res1.json()["ref"] == "Chapter_01.txt"
+
+    fallback_res2 = client.get("/api/chapter?ref=Chapter_01.txt")
+    assert fallback_res2.status_code == 200
+    assert fallback_res2.json()["ref"] == "Chapter_01.txt"
 
 
 def test_bookmarks_and_progress(tmp_path: Path, monkeypatch):

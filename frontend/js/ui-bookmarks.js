@@ -102,8 +102,11 @@ export function renderBookmarks() {
       const confirmDelete = confirm(`Hapus "${label}" dari daftar chapter dibaca?`);
       if (!confirmDelete) return;
 
+      const novelId = (ch && ch.novel_id) || state.activeNovelId;
+      if (!novelId) return;
+
       try {
-        await api.delete(`/api/bookmark?novel_id=${encodeURIComponent(state.activeNovelId)}&bookmark_id=${encodeURIComponent(bm.id)}`);
+        await api.delete(`/api/bookmark?novel_id=${encodeURIComponent(novelId)}&bookmark_id=${encodeURIComponent(bm.id)}`);
         state.bookmarks = state.bookmarks.filter(b => b.id !== bm.id);
         state.readSet = new Set(state.bookmarks.map(b => b.chapter_index));
         renderBookmarks();

@@ -1,4 +1,4 @@
-"""Endpoint chapters: daftar & isi chapter (mendukung multi-folder)."""
+"""Endpoint chapters: daftar & isi chapter (mendukung multi-folder & fallback resolver)."""
 from __future__ import annotations
 
 import json
@@ -26,6 +26,9 @@ def find_novel_location(
     Cari lokasi folder novel di seluruh library_roots.
     Mengembalikan (matched_root, folder_path).
     """
+    if not novel_id or novel_id.lower() in ("null", "undefined", "none"):
+        return None, None
+
     root_list = [roots] if isinstance(roots, str) else list(roots)
 
     for root in root_list:
@@ -72,6 +75,57 @@ def find_novel_location(
     return None, None
 
 
+def find_novel_by_ref(
+    roots: Union[str, List[str]], ref: str
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Cari novel (matched_root, folder_path, novel_id) berdasarkan referensi chapter (ref).
+    Fallback jika novel_id bernilai 'null', 'undefined', atau kosong.
+    """
+    if not ref:
+        return None, None, None
+
+    root_list = [roots] if isinstance(roots, str) else list(roots)
+
+    for root in root_list:
+        if not root or not Path(root).exists():
+            continue
+        root_path = Path(root)
+        idx = root_path / "library_index.json"
+
+        # 1. Cek indexed di root ini
+        if idx.exists():
+            try:
+                data = json.loads(idx.read_text(encoding="utf-8"))
+                for c in data.get("chapters", []):
+                    if c.get("id") == ref or str(c.get("nomor_chapter")) == ref:
+                        target_nid = c.get("novel_id", "")
+                        for n in data.get("novels", []):
+                            nid = n.get("id") or ("nov_" + _norm(n.get("judul", "")))
+                            if nid == target_nid:
+                                fp = n.get("folder_path", "")
+                                if fp and not Path(fp).is_absolute():
+                                    fp = str((root_path / fp).resolve())
+                                if fp and Path(fp).is_dir():
+                                    return root, fp, target_nid
+                                return root, str(root_path / n.get("judul", "novel")), target_nid
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # 2. Cek scan legacy di root ini
+        try:
+            for d in root_path.iterdir():
+                if d.is_dir():
+                    nid = "nov_" + _norm(d.name)
+                    chaps = lib_service.build_chapter_list(str(d), novel_id=nid, root=root)
+                    if any(c.ref == ref or str(c.index) == ref for c in chaps):
+                        return root, str(d), nid
+        except OSError:
+            pass
+
+    return None, None, None
+
+
 def _find_novel_folder(root: str, novel_id: str) -> str | None:
     _, folder = find_novel_location(root, novel_id)
     return folder
@@ -80,14 +134,16 @@ def _find_novel_folder(root: str, novel_id: str) -> str | None:
 @router.get("/chapters")
 def get_chapters(novel_id: str = Query(...)):
     roots = get_library_roots()
-    root, folder = find_novel_location(roots, novel_id)
+    clean_nid = (novel_id or "").strip()
+    root, folder = find_novel_location(roots, clean_nid)
+
     if not folder:
         raise HTTPException(status_code=404, detail="Novel tidak ditemukan.")
 
-    chapters = lib_service.build_chapter_list(folder, novel_id=novel_id, root=root or "")
+    chapters = lib_service.build_chapter_list(folder, novel_id=clean_nid, root=root or "")
     prog = prog_service.load_progress(folder)
     return {
-        "novel_id": novel_id,
+        "novel_id": clean_nid,
         "novel_folder": folder,
         "chapters": [c.model_dump() for c in chapters],
         "current_index": prog.current_chapter_index,
@@ -96,18 +152,34 @@ def get_chapters(novel_id: str = Query(...)):
 
 
 @router.get("/chapter")
-def get_chapter(novel_id: str = Query(...), ref: str = Query(...)):
+def get_chapter(novel_id: Optional[str] = Query(None), ref: str = Query(...)):
     roots = get_library_roots()
-    root, folder = find_novel_location(roots, novel_id)
-    if not folder:
-        raise HTTPException(status_code=404, detail="Novel tidak ditemukan.")
 
-    chapters = lib_service.build_chapter_list(folder, novel_id=novel_id, root=root or "")
+    clean_nid = (novel_id or "").strip()
+    if clean_nid.lower() in ("null", "undefined", "none", ""):
+        clean_nid = None
+
+    root: Optional[str] = None
+    folder: Optional[str] = None
+
+    if clean_nid:
+        root, folder = find_novel_location(roots, clean_nid)
+
+    # Fallback: cari berdasarkan ref jika novel_id tidak valid
+    if not folder:
+        root, folder, resolved_nid = find_novel_by_ref(roots, ref)
+        if resolved_nid:
+            clean_nid = resolved_nid
+
+    if not folder:
+        raise HTTPException(status_code=404, detail="Novel atau chapter tidak ditemukan.")
+
+    chapters = lib_service.build_chapter_list(folder, novel_id=clean_nid or "", root=root or "")
     target = next((c for c in chapters if c.ref == ref or str(c.index) == ref), None)
     if not target:
         raise HTTPException(status_code=404, detail="Chapter tidak ditemukan.")
 
-    content = reader_service.get_chapter_content(root or "", folder, novel_id, target)
+    content = reader_service.get_chapter_content(root or "", folder, clean_nid or "", target)
     content.total = len(chapters)
 
     # auto-save progress

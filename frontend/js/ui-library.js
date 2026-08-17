@@ -1,9 +1,9 @@
 // Render daftar novel (kartu) & navigasi ke chapter.
-import { state, setActiveNovel } from "./state.js?v=4";
-import { api } from "./api.js?v=4";
-import { escapeHtml } from "./util.js?v=4";
-import { loadChapters } from "./ui-reader.js?v=4";
-import { showToast } from "./main.js?v=4";
+import { state, setActiveNovel } from "./state.js";
+import { api } from "./api.js";
+import { escapeHtml } from "./util.js";
+import { loadChapters } from "./ui-reader.js";
+import { showToast } from "./main.js";
 
 const elNovelList = document.getElementById("novel-list");
 const elNovelEmpty = document.getElementById("novel-empty");
