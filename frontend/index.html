@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Noir Reader Pro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="/static/css/theme.css?v=2" />
-  <link rel="stylesheet" href="/static/css/layout.css?v=2" />
+  <link rel="stylesheet" href="/static/css/theme.css?v=3" />
+  <link rel="stylesheet" href="/static/css/layout.css?v=3" />
 </head>
 <body class="theme-light">
   <header class="topbar">
@@ -47,6 +47,13 @@
         <span class="count-pill" id="novel-count" title="Jumlah novel">0</span>
         <button id="btn-collapse-novels" class="icon-btn-sm btn-collapse" title="Sembunyikan panel koleksi (N)" aria-label="Sembunyikan panel koleksi">«</button>
       </div>
+      <div class="novel-tools">
+        <div class="search-wrap">
+          <input id="novel-search" class="search" type="search" placeholder="Cari novel…" autocomplete="off" aria-label="Cari novel" />
+          <button id="btn-clear-novel-search" class="btn-clear" title="Bersihkan pencarian novel" aria-label="Bersihkan pencarian novel" hidden>✕</button>
+        </div>
+        <div id="novel-search-info" class="search-info" hidden></div>
+      </div>
       <div id="novel-list" class="scroll-list"></div>
       <div id="novel-empty" class="empty-state" hidden>
         <p>Belum ada koleksi.</p>
@@ -79,8 +86,6 @@
     <main class="col col-reader" id="reader" aria-label="Pembaca chapter">
       <div id="reader-toolbar" class="reader-toolbar" hidden>
         <div class="reader-nav-group">
-          <button id="btn-reader-novels" class="btn-sm btn-nav-toggle" title="Buka panel koleksi novel (N)">📚 Koleksi</button>
-          <button id="btn-reader-chapters" class="btn-sm btn-nav-toggle" title="Buka panel daftar chapter (C)">📑 Chapter</button>
           <button id="btn-prev" class="icon-btn" title="Chapter sebelumnya (←)" aria-label="Chapter sebelumnya" disabled>‹</button>
           <span id="reader-pos" class="reader-pos" aria-live="polite">—</span>
           <button id="btn-next" class="icon-btn" title="Chapter berikutnya (→)" aria-label="Chapter berikutnya" disabled>›</button>
@@ -153,6 +158,6 @@
   <!-- Accessible Toast Feedback -->
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script type="module" src="/static/js/main.js?v=2"></script>
+  <script type="module" src="/static/js/main.js?v=3"></script>
 </body>
 </html>

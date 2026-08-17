@@ -21,7 +21,8 @@ export const state = {
     show_original: false,
   },
   showOriginal: false,
-  chapterFilter: "",
+  novelFilter: "",       // Filter pencarian novel pada panel koleksi
+  chapterFilter: "",     // Filter pencarian chapter
 };
 
 export function setActiveNovel(novel) {

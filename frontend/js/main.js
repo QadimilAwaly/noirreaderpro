@@ -1,9 +1,9 @@
 // Entry point: wiring event & inisialisasi aplikasi.
-import { state } from "./state.js";
-import { loadNovels, setStatus } from "./ui-library.js";
-import { openChapter, navigate } from "./ui-reader.js";
-import { initSettings, toggleTheme, toggleSettings, closeSettings } from "./ui-settings.js";
-import { toggleBookmarks, closeBookmarks } from "./ui-bookmarks.js";
+import { state } from "./state.js?v=4";
+import { loadNovels, setStatus } from "./ui-library.js?v=4";
+import { openChapter, navigate } from "./ui-reader.js?v=4";
+import { initSettings, toggleTheme, toggleSettings, closeSettings } from "./ui-settings.js?v=4";
+import { toggleBookmarks, closeBookmarks } from "./ui-bookmarks.js?v=4";
 
 let toastTimer = null;
 
@@ -122,13 +122,6 @@ if (btnCollapseChapters) {
     else toggleChapters(false);
   };
 }
-
-// Reader toolbar quick navigation buttons
-const btnReaderNovels = document.getElementById("btn-reader-novels");
-if (btnReaderNovels) btnReaderNovels.onclick = () => toggleNovels();
-
-const btnReaderChapters = document.getElementById("btn-reader-chapters");
-if (btnReaderChapters) btnReaderChapters.onclick = () => toggleChapters();
 
 // Sidebar backdrop click
 if (sidebarBackdrop) {

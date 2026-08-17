@@ -224,6 +224,45 @@ body.collapse-chapters .col-chapters {
   border-radius: 8px;
 }
 
+/* Novel search tools & Chapter search tools */
+.novel-tools, .chapter-tools {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.btn-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--fg-soft);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 3px 6px;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.btn-clear:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.search-info {
+  font-size: 0.75rem;
+  color: var(--fg-soft);
+  margin-top: 5px;
+  padding: 0 2px;
+}
+
 /* Novel cards */
 .novel-card {
   padding: 11px 13px;
@@ -269,45 +308,6 @@ body.collapse-chapters .col-chapters {
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 600;
-}
-
-/* Chapter search tools */
-.chapter-tools {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  flex-shrink: 0;
-}
-
-.search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.btn-clear {
-  position: absolute;
-  right: 6px;
-  background: none;
-  border: none;
-  color: var(--fg-soft);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 3px 6px;
-  border-radius: 50%;
-  line-height: 1;
-}
-
-.btn-clear:hover {
-  background: var(--surface-2);
-  color: var(--fg);
-}
-
-.search-info {
-  font-size: 0.75rem;
-  color: var(--fg-soft);
-  margin-top: 5px;
-  padding: 0 2px;
 }
 
 /* Chapter cards */
@@ -440,15 +440,6 @@ body.collapse-chapters .col-chapters {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.btn-nav-toggle {
-  display: none;
-}
-
-body.collapse-novels .btn-nav-toggle#btn-reader-novels,
-body.collapse-chapters .btn-nav-toggle#btn-reader-chapters {
-  display: inline-flex;
 }
 
 .reader-pos {
@@ -824,10 +815,6 @@ body.collapse-chapters .btn-nav-toggle#btn-reader-chapters {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-  }
-
-  .btn-nav-toggle {
-    display: inline-flex !important;
   }
 
   .reader-toolbar {

@@ -1,9 +1,9 @@
 // Render daftar novel (kartu) & navigasi ke chapter.
-import { state, setActiveNovel } from "./state.js";
-import { api } from "./api.js";
-import { escapeHtml } from "./util.js";
-import { loadChapters } from "./ui-reader.js";
-import { showToast } from "./main.js";
+import { state, setActiveNovel } from "./state.js?v=4";
+import { api } from "./api.js?v=4";
+import { escapeHtml } from "./util.js?v=4";
+import { loadChapters } from "./ui-reader.js?v=4";
+import { showToast } from "./main.js?v=4";
 
 const elNovelList = document.getElementById("novel-list");
 const elNovelEmpty = document.getElementById("novel-empty");
@@ -11,10 +11,54 @@ const elNovelCount = document.getElementById("novel-count");
 const elBrandSub = document.getElementById("brand-sub");
 const elStatusPill = document.getElementById("status-pill");
 
+// Wire search input listeners
+function setupSearchListeners() {
+  const elNovelSearch = document.getElementById("novel-search");
+  const elClearNovelSearch = document.getElementById("btn-clear-novel-search");
+
+  if (elNovelSearch && !elNovelSearch._searchWired) {
+    elNovelSearch._searchWired = true;
+    elNovelSearch.addEventListener("input", (e) => {
+      state.novelFilter = e.target.value.trim().toLowerCase();
+      renderNovels();
+    });
+  }
+
+  if (elClearNovelSearch && !elClearNovelSearch._clearWired) {
+    elClearNovelSearch._clearWired = true;
+    elClearNovelSearch.addEventListener("click", () => {
+      const input = document.getElementById("novel-search");
+      if (input) input.value = "";
+      state.novelFilter = "";
+      renderNovels();
+      if (input) input.focus();
+    });
+  }
+}
+
 export function renderNovels() {
+  setupSearchListeners();
   if (!elNovelList) return;
   elNovelList.innerHTML = "";
   if (elNovelCount) elNovelCount.textContent = String(state.novels.length);
+
+  const elClearNovelSearch = document.getElementById("btn-clear-novel-search");
+  const elNovelSearchInfo = document.getElementById("novel-search-info");
+
+  const q = state.novelFilter;
+  const filtered = q
+    ? state.novels.filter(n => n.judul.toLowerCase().includes(q))
+    : state.novels;
+
+  if (elClearNovelSearch) elClearNovelSearch.hidden = !q;
+  if (elNovelSearchInfo) {
+    if (q) {
+      elNovelSearchInfo.hidden = false;
+      elNovelSearchInfo.textContent = `${filtered.length} novel ditemukan`;
+    } else {
+      elNovelSearchInfo.hidden = true;
+    }
+  }
 
   if (!state.novels.length) {
     if (elNovelEmpty) elNovelEmpty.hidden = false;
@@ -22,7 +66,16 @@ export function renderNovels() {
   }
   if (elNovelEmpty) elNovelEmpty.hidden = true;
 
-  for (const n of state.novels) {
+  if (!filtered.length) {
+    elNovelList.innerHTML = `
+      <div class="empty-state">
+        <p>Tidak ada novel yang cocok.</p>
+        <p class="hint">Coba kata kunci pencarian yang lain.</p>
+      </div>`;
+    return;
+  }
+
+  for (const n of filtered) {
     const isActive = n.id === state.activeNovelId;
     const div = document.createElement("div");
     div.className = "novel-card" + (isActive ? " active" : "");
@@ -47,6 +100,12 @@ export function renderNovels() {
     };
 
     elNovelList.appendChild(div);
+  }
+
+  // Scroll active novel into view if present
+  const activeEl = elNovelList.querySelector(".novel-card.active");
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 }
 
@@ -79,6 +138,7 @@ export function setStatus(text) {
 }
 
 export async function loadNovels() {
+  setupSearchListeners();
   setStatus("Memuat koleksi…");
   if (elNovelList && !state.novels.length) {
     elNovelList.innerHTML = `
