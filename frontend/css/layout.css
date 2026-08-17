@@ -60,6 +60,7 @@
 
 .logo {
   font-size: 1.35rem;
+  line-height: 1;
 }
 
 .brand-text h1 {
@@ -67,12 +68,16 @@
   margin: 0;
   letter-spacing: -0.01em;
   white-space: nowrap;
+  color: var(--fg);
 }
 
 .brand-sub {
   font-size: 0.7rem;
   color: var(--fg-soft);
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-actions {
@@ -730,27 +735,28 @@ body.collapse-chapters .col-chapters {
    ========================================================= */
 @media (max-width: 980px) {
   .topbar {
-    padding: 6px 10px;
-    gap: 6px;
-    justify-content: space-between;
+    padding: 6px 12px;
+    gap: 8px;
     width: 100%;
     max-width: 100vw;
     box-sizing: border-box;
-    overflow-x: hidden;
   }
 
-  /* Heading menu disembunyikan pada layar mobile phone */
   .brand {
-    display: none !important;
+    display: flex;
+  }
+
+  .brand-text h1 {
+    font-size: 0.95rem;
   }
 
   .brand-sub, .status-pill {
-    display: none !important;
+    display: none;
   }
 
   .btn-sidebar-toggle .btn-label,
   .btn-folder-toggle .btn-label {
-    display: none !important;
+    display: none;
   }
 
   .btn-sidebar-toggle, .btn-folder-toggle, .btn, .icon-btn {
@@ -820,5 +826,17 @@ body.collapse-chapters .col-chapters {
   .reader-toolbar {
     padding: 6px 10px;
     gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-text h1 {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .brand-text {
+    display: none;
   }
 }
