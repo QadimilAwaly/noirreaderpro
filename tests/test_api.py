@@ -181,3 +181,65 @@ def test_bookmarks_and_progress(tmp_path: Path, monkeypatch):
     res = client.get(f"/api/progress?novel_id={novel_id}")
     assert res.status_code == 200
     assert len(res.json()["bookmarks"]) == 0
+
+
+def test_chapter_get_auto_bookmarks_single_write(tmp_path: Path, monkeypatch):
+    lib_dir = tmp_path / "Library"
+    lib_dir.mkdir()
+    novel_dir = lib_dir / "Auto Novel"
+    novel_dir.mkdir()
+    (novel_dir / "Chapter_01.txt").write_text("Konten 1.", encoding="utf-8")
+    (novel_dir / "Chapter_02.txt").write_text("Konten 2.", encoding="utf-8")
+
+    device_cfg = tmp_path / "device_config.json"
+    monkeypatch.setattr(core.config, "DEVICE_CONFIG_JSON", device_cfg)
+
+    client.post("/api/set-library-root", json={"path": str(lib_dir)})
+    novels = client.get("/api/novels").json()["novels"]
+    novel_id = novels[0]["id"]
+
+    # Track calls to save_progress
+    from services import progress as prog_service
+    save_calls = 0
+    orig_save = prog_service.save_progress
+
+    def counted_save(folder, p):
+        nonlocal save_calls
+        save_calls += 1
+        return orig_save(folder, p)
+
+    monkeypatch.setattr(prog_service, "save_progress", counted_save)
+    import api.router_chapters
+    monkeypatch.setattr(api.router_chapters.prog_service, "save_progress", counted_save)
+
+    # GET /api/chapter for chapter 0
+    res = client.get(f"/api/chapter?novel_id={novel_id}&ref=Chapter_01.txt")
+    assert res.status_code == 200
+    assert save_calls == 1  # Exactly ONE atomic write on chapter open
+
+    # Verify progress and bookmark are auto-saved
+    prog_res = client.get(f"/api/progress?novel_id={novel_id}")
+    assert prog_res.status_code == 200
+    prog_data = prog_res.json()
+    assert prog_data["current_chapter_index"] == 0
+    assert len(prog_data["bookmarks"]) == 1
+    assert prog_data["bookmarks"][0]["chapter_index"] == 0
+    assert prog_data["bookmarks"][0]["label"] == "Chapter 01"
+
+    # Opening next chapter should update progress and auto-create second bookmark with exactly 1 write
+    save_calls = 0
+    res2 = client.get(f"/api/chapter?novel_id={novel_id}&ref=Chapter_02.txt")
+    assert res2.status_code == 200
+    assert save_calls == 1  # Exactly ONE atomic write
+    prog_data2 = client.get(f"/api/progress?novel_id={novel_id}").json()
+    assert prog_data2["current_chapter_index"] == 1
+    assert len(prog_data2["bookmarks"]) == 2
+
+    # Re-reading already bookmarked chapter updates index but does not duplicate bookmark (1 write)
+    save_calls = 0
+    res3 = client.get(f"/api/chapter?novel_id={novel_id}&ref=Chapter_01.txt")
+    assert res3.status_code == 200
+    assert save_calls == 1
+    prog_data3 = client.get(f"/api/progress?novel_id={novel_id}").json()
+    assert prog_data3["current_chapter_index"] == 0
+    assert len(prog_data3["bookmarks"]) == 2

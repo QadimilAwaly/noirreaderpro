@@ -221,8 +221,21 @@ export async function openChapter(ref, isResume = false) {
     if (elContent) elContent.scrollTop = 0;
     setStatus("Siap");
 
-    // AUTO-BOOKMARK: catat chapter ini sebagai dibaca
-    await markRead(ch);
+    // Update status baca & auto-bookmark secara in-memory (tanpa request tambahan)
+    if (!state.readSet.has(ch.index)) {
+      state.readSet.add(ch.index);
+      const exists = state.bookmarks.some(b => b.chapter_index === ch.index);
+      if (!exists) {
+        state.bookmarks.push({
+          id: `bm_auto_${ch.index}`,
+          chapter_index: ch.index,
+          label: ch.title,
+          created_at: new Date().toISOString(),
+        });
+      }
+      renderChapterCards();
+      renderBookmarks();
+    }
   } catch (e) {
     if (elContent) {
       elContent.innerHTML = `
@@ -233,24 +246,6 @@ export async function openChapter(ref, isResume = false) {
     }
     showToast(e.message, "error");
     setStatus("Gagal");
-  }
-}
-
-async function markRead(ch) {
-  const novelId = ch.novel_id || state.activeNovelId;
-  if (!novelId) return;
-
-  try {
-    const prog = await api.post(
-      `/api/mark-read?novel_id=${encodeURIComponent(novelId)}`,
-      { chapter_index: ch.index, label: ch.title }
-    );
-    state.bookmarks = prog.bookmarks || [];
-    state.readSet = new Set(state.bookmarks.map(b => b.chapter_index));
-    renderChapterCards();
-    renderBookmarks();
-  } catch (e) {
-    // Non-critical, ignore
   }
 }
 

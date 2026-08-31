@@ -182,8 +182,16 @@ def get_chapter(novel_id: Optional[str] = Query(None), ref: str = Query(...)):
     content = reader_service.get_chapter_content(root or "", folder, clean_nid or "", target)
     content.total = len(chapters)
 
-    # auto-save progress
+    # auto-save progress & auto-bookmark
     prog = prog_service.load_progress(folder)
     prog.current_chapter_index = target.index
+    exists = any(b.chapter_index == target.index for b in prog.bookmarks)
+    if not exists:
+        prog = prog_service.add_bookmark_raw(prog, target.index, target.title or "")
+    else:
+        if target.title:
+            for b in prog.bookmarks:
+                if b.chapter_index == target.index and not b.label:
+                    b.label = target.title
     prog_service.save_progress(folder, prog)
     return content.model_dump()

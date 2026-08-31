@@ -38,3 +38,6 @@ device_config.json
 .env
 *.env
 .env.*
+
+# Audit / review artifacts (local reports, not part of shipped app)
+audit/
