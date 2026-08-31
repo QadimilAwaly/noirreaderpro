@@ -14,11 +14,23 @@ def test_health_check():
 
 
 def test_no_cache_middleware_headers():
-    res = client.get("/")
-    assert res.status_code == 200
-    assert "no-cache" in res.headers.get("cache-control", "")
-    assert "no-store" in res.headers.get("cache-control", "")
+    # 1. Dynamic API endpoints must send no-store & no-cache
+    api_res = client.get("/api/state")
+    assert "no-cache" in api_res.headers.get("cache-control", "")
+    assert "no-store" in api_res.headers.get("cache-control", "")
 
+    # 2. Root HTML allows caching with ETag revalidation (not no-store)
+    root_res = client.get("/")
+    assert root_res.status_code == 200
+    assert "no-cache" in root_res.headers.get("cache-control", "")
+    assert "no-store" not in root_res.headers.get("cache-control", "")
+
+    # 3. Static assets allow browser caching (not no-store)
+    static_res = client.get("/static/css/theme.css")
+    assert static_res.status_code == 200
+    assert "public" in static_res.headers.get("cache-control", "")
+    assert "max-age" in static_res.headers.get("cache-control", "")
+    assert "no-store" not in static_res.headers.get("cache-control", "")
 
 def test_settings_roundtrip(tmp_path: Path, monkeypatch):
     test_settings_file = tmp_path / "test_settings.json"

@@ -7,17 +7,17 @@ const panel = document.getElementById("settings-panel");
 const btnSettings = document.getElementById("btn-settings");
 const btnClose = document.getElementById("btn-close-settings");
 const backdrop = document.getElementById("drawer-backdrop");
-
 const rngFont = document.getElementById("rng-font");
 const rngSpacing = document.getElementById("rng-spacing");
+const rngMargin = document.getElementById("rng-margin");
 const rngWidth = document.getElementById("rng-width");
 const rngIndent = document.getElementById("rng-indent");
 const selTheme = document.getElementById("sel-theme");
 const valFont = document.getElementById("val-font");
 const valSpacing = document.getElementById("val-spacing");
+const valMargin = document.getElementById("val-margin");
 const valWidth = document.getElementById("val-width");
 const valIndent = document.getElementById("val-indent");
-
 let pushTimer = null;
 
 export function openSettings() {
@@ -72,6 +72,8 @@ export function syncInputs() {
   if (rngSpacing) rngSpacing.value = state.settings.line_spacing || 1.7;
   if (valSpacing) valSpacing.textContent = state.settings.line_spacing || 1.7;
 
+  if (rngMargin) rngMargin.value = state.settings.page_margin || 24;
+  if (valMargin) valMargin.textContent = state.settings.page_margin || 24;
   if (rngWidth) rngWidth.value = state.settings.read_width || 720;
   if (valWidth) valWidth.textContent = state.settings.read_width || 720;
 
@@ -112,6 +114,15 @@ if (rngSpacing) {
   };
 }
 
+if (rngMargin) {
+  rngMargin.oninput = () => {
+    valMargin.textContent = rngMargin.value;
+    state.settings.page_margin = +rngMargin.value;
+    applyVars();
+    debouncedPushSettings();
+  };
+}
+
 if (rngWidth) {
   rngWidth.oninput = () => {
     valWidth.textContent = rngWidth.value;
@@ -135,7 +146,6 @@ if (selTheme) {
     state.settings.theme = selTheme.value;
     setThemeClass(selTheme.value);
     debouncedPushSettings();
-    api.post(`/api/theme?theme=${selTheme.value}`).catch(() => {});
   };
 }
 

@@ -26,18 +26,25 @@ from api.router_settings import router as settings_router
 app = FastAPI(title="Noir Reader Pro", version="1.0.0")
 
 
-class NoCacheMiddleware(BaseHTTPMiddleware):
+class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
-        # Cegah browser caching pada file statis dan HTML agar pembaruan JS selalu instan
-        if request.url.path.startswith("/static/") or request.url.path == "/":
+        path = request.url.path
+        if path.startswith("/api/"):
+            # Dynamic API responses must never be cached by browser
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+        elif path.startswith("/static/"):
+            # Static CSS, JS, images are cacheable by browser with conditional validation
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        elif path == "/":
+            # Root HTML is cached with revalidation (ETag/304) so updates are immediate
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
 
-app.add_middleware(NoCacheMiddleware)
+app.add_middleware(CacheControlMiddleware)
 
 # API routers
 app.include_router(library_router)
@@ -55,9 +62,7 @@ def index():
     return FileResponse(
         str(FRONTEND / "index.html"),
         headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
+            "Cache-Control": "no-cache",
         },
     )
 

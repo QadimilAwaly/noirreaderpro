@@ -97,11 +97,31 @@ export function renderBookmarks() {
     };
 
     const delBtn = div.querySelector(".bm-del");
+    let isConfirming = false;
+    let resetTimer = null;
+
+    const resetDelBtn = () => {
+      isConfirming = false;
+      delBtn.textContent = "🗑";
+      delBtn.title = "Hapus dari daftar baca";
+      delBtn.style.fontSize = "1.05rem";
+      delBtn.style.fontWeight = "";
+    };
+
     delBtn.onclick = async (e) => {
       e.stopPropagation();
-      const confirmDelete = confirm(`Hapus "${label}" dari daftar chapter dibaca?`);
-      if (!confirmDelete) return;
+      if (!isConfirming) {
+        isConfirming = true;
+        delBtn.textContent = "Hapus?";
+        delBtn.title = `Klik lagi untuk konfirmasi hapus "${label}"`;
+        delBtn.style.fontSize = "0.76rem";
+        delBtn.style.fontWeight = "600";
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(resetDelBtn, 3000);
+        return;
+      }
 
+      clearTimeout(resetTimer);
       const novelId = (ch && ch.novel_id) || state.activeNovelId;
       if (!novelId) return;
 

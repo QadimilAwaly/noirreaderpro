@@ -36,6 +36,15 @@ python main.py
 ```
 Edit `config.json` -> `"library_root": "/sdcard/Download/Novel_Library"` lalu jalankan.
 
+### Menghentikan Server & Manajemen Baterai (Termux Standby)
+Aplikasi ini berjalan sebagai server lokal uvicorn di port 3030. Saat sesi membaca selesai, hentikan server agar tablet tidak terus mengonsumsi daya baterai di latar belakang:
+- Jika berjalan di foreground terminal Termux: tekan `Ctrl + C`.
+- Jika berjalan di background atau ingin menghentikan sekaligus:
+  ```bash
+  pkill -f "python main.py"
+  ```
+- *Tips Hemat Daya:* Jalankan server secara on-demand saat ingin membaca, dan hentikan proses saat selesai untuk menghemat baterai perangkat.
+
 ## Menentukan Library Root (via `config.json`)
 Edit file `config.json` di direktori app:
 ```json
@@ -75,7 +84,7 @@ tests/     pytest (storage, paths, library, reader, epub, progress, api)
 ```
 
 ## UI — 10 Heuristik UX Nielsen
-1. **Status sistem:** indikator "Memuat…", posisi "3 / 120", toast "Tersimpan".
+1. **Status sistem:** indikator "Memuat…", posisi "3 / 120", auto-save hening real-time, dan toast status saat ada aksi.
 2. **Dunia nyata:** bahasa Indonesia (Bab, Pengaturan, Tandai), ikon buku & bintang.
 3. **Kontrol & kebebasan:** prev/next, hapus bookmark dgn konfirmasi, tutup panel, panel collapsible.
 4. **Konsisten:** posisi tombol tetap, shortcut keyboard (←/→, T tema, B bookmark, N novel, C chapter), selaras gaya translator.
