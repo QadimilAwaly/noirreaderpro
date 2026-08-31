@@ -17,6 +17,13 @@ _OPF_NS = {
     "opf": "http://www.idpf.org/2007/opf",
 }
 
+# In-memory cache for parsed EPUB chapter titles: path -> (mtime_ns, titles_list)
+_epub_chapters_cache: dict[str, tuple[int, list[str]]] = {}
+
+def clear_epub_cache() -> None:
+    """Bersihkan cache chapter list EPUB (berguna untuk testing / reset)."""
+    _epub_chapters_cache.clear()
+
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -144,18 +151,32 @@ def _doc_title(zf: zipfile.ZipFile, doc_path: str) -> str | None:
 
 
 def list_epub_chapters(epub_path: str) -> list[str]:
-    """Kembalikan daftar judul chapter (untuk daftar di sidebar)."""
-    with zipfile.ZipFile(epub_path) as zf:
-        opf = _find_opf(zf)
-        if not opf:
-            return []
-        docs = _spine_order(zf, opf)
-        titles: list[str] = []
-        for i, doc in enumerate(docs):
-            t = _doc_title(zf, doc)
-            titles.append(t or f"Part {i+1}")
-        return titles
+    """Kembalikan daftar judul chapter (untuk daftar di sidebar), di-cache berdasarkan mtime file."""
+    try:
+        p = Path(epub_path).resolve()
+        mtime = p.stat().st_mtime_ns
+    except OSError:
+        return []
 
+    cache_key = str(p)
+    cached = _epub_chapters_cache.get(cache_key)
+    if cached is not None and cached[0] == mtime:
+        return list(cached[1])
+
+    titles: list[str] = []
+    try:
+        with zipfile.ZipFile(str(p)) as zf:
+            opf = _find_opf(zf)
+            if opf:
+                docs = _spine_order(zf, opf)
+                for i, doc in enumerate(docs):
+                    t = _doc_title(zf, doc)
+                    titles.append(t or f"Part {i+1}")
+    except Exception:
+        titles = []
+
+    _epub_chapters_cache[cache_key] = (mtime, titles)
+    return list(titles)
 
 def get_epub_chapter(epub_path: str, index: int) -> str:
     """Kembalikan HTML <p> chapter ke-index (1 file epub = banyak chapter)."""

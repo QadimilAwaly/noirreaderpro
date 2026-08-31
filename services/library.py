@@ -20,6 +20,20 @@ from models.novel import ChapterInfo, NovelInfo
 INDEX_FILENAME = "library_index.json"
 _PROGRESS_PREFIX = "."
 
+# In-memory caches for fast library and chapter resolution
+_indexed_catalog_cache: dict[str, tuple[int, List[NovelInfo]]] = {}
+_legacy_catalog_cache: dict[str, tuple[tuple, List[NovelInfo]]] = {}
+_chapter_list_cache: dict[str, tuple[tuple, List[ChapterInfo]]] = {}
+_indexed_chapters_cache: dict[tuple[str, str], tuple[int, List[ChapterInfo]]] = {}
+
+
+def clear_library_cache() -> None:
+    """Bersihkan semua cache katalog novel dan daftar chapter."""
+    _indexed_catalog_cache.clear()
+    _legacy_catalog_cache.clear()
+    _chapter_list_cache.clear()
+    _indexed_chapters_cache.clear()
+
 
 # sanitasi nama folder -> id stabil
 def _novel_id(folder_path: str) -> str:
@@ -36,13 +50,22 @@ def _try_indexed(root: str) -> List[NovelInfo] | None:
     if not idx_path.exists():
         return None
     try:
+        mtime = idx_path.stat().st_mtime_ns
+    except OSError:
+        return None
+
+    root_key = str(Path(root).resolve())
+    cached = _indexed_catalog_cache.get(root_key)
+    if cached is not None and cached[0] == mtime:
+        return [n.model_copy() for n in cached[1]]
+
+    try:
         with idx_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return None
     if not isinstance(data, dict) or "novels" not in data:
         return None
-
     novels_raw = data.get("novels", [])
     chapters_raw = data.get("chapters", [])
     # kelompokkan chapters per novel_id
@@ -69,16 +92,27 @@ def _try_indexed(root: str) -> List[NovelInfo] | None:
             has_original=bool(has_orig),
         ))
     out.sort(key=lambda x: natural_sort_key(x.judul))
-    return out
+    _indexed_catalog_cache[root_key] = (mtime, out)
+    return [n.model_copy() for n in out]
 
 
 def _scan_legacy(root: str) -> List[NovelInfo]:
     root_path = Path(root)
-    out: List[NovelInfo] = []
     try:
         entries = [e for e in root_path.iterdir() if e.is_dir()]
+        entries.sort(key=lambda e: natural_sort_key(e.name))
+        root_mtime = root_path.stat().st_mtime_ns
+        sub_mtimes = tuple((e.name, e.stat().st_mtime_ns) for e in entries)
+        sig = (root_mtime, sub_mtimes)
     except OSError:
-        return out
+        return []
+
+    root_key = str(root_path.resolve())
+    cached = _legacy_catalog_cache.get(root_key)
+    if cached is not None and cached[0] == sig:
+        return [n.model_copy() for n in cached[1]]
+
+    out: List[NovelInfo] = []
     for d in entries:
         chaps = build_chapter_list(str(d), novel_id=_novel_id(str(d)), root=root)
         if not chaps:
@@ -92,7 +126,8 @@ def _scan_legacy(root: str) -> List[NovelInfo]:
             has_original=has_orig,
         ))
     out.sort(key=lambda x: natural_sort_key(x.judul))
-    return out
+    _legacy_catalog_cache[root_key] = (sig, out)
+    return [n.model_copy() for n in out]
 
 
 def load_library(root_or_roots: Union[str, Sequence[str]]) -> List[NovelInfo]:
@@ -133,12 +168,20 @@ def _get_indexed_chapters(root: str, novel_id: str) -> List[ChapterInfo]:
     if not idx_path.exists():
         return []
     try:
+        mtime = idx_path.stat().st_mtime_ns
+    except OSError:
+        return []
+
+    cache_key = (str(Path(root).resolve()), novel_id)
+    cached = _indexed_chapters_cache.get(cache_key)
+    if cached is not None and cached[0] == mtime:
+        return [c.model_copy() for c in cached[1]]
+
+    try:
         with idx_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return []
-
-    # Cocokkan novel_id (langsung atau normalisasi)
     target_nid = novel_id
     if "_" in novel_id:
         # Mungkin ada suffix root
@@ -168,7 +211,8 @@ def _get_indexed_chapters(root: str, novel_id: str) -> List[ChapterInfo]:
             has_original=has_orig,
             index=i,
         ))
-    return items
+    _indexed_chapters_cache[cache_key] = (mtime, items)
+    return [c.model_copy() for c in items]
 
 
 def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") -> List[ChapterInfo]:
@@ -195,18 +239,25 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
     if not folder.is_dir():
         return []
     nid = novel_id or _novel_id(novel_folder)
-    items: List[ChapterInfo] = []
 
-    # 2. Kumpulkan file lokal (txt / md / epub)
     try:
+        folder_mtime = folder.stat().st_mtime_ns
         files = sorted(
             [p for p in folder.iterdir()
              if p.suffix.lower() in (".txt", ".md", ".epub") and p.is_file()],
             key=lambda p: natural_sort_key(p.name),
         )
+        file_mtimes = tuple((p.name, p.stat().st_mtime_ns) for p in files)
+        sig = (folder_mtime, file_mtimes)
     except OSError:
         return []
 
+    cache_key = str(folder.resolve())
+    cached = _chapter_list_cache.get(cache_key)
+    if cached is not None and cached[0] == sig:
+        return [c.model_copy() for c in cached[1]]
+
+    items: List[ChapterInfo] = []
     idx_counter = 0
     for p in files:
         ext = p.suffix.lower()
@@ -245,8 +296,8 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
     items.sort(key=lambda c: natural_sort_key(c.sort_key))
     for i, c in enumerate(items):
         c.index = i
-    return items
-
+    _chapter_list_cache[cache_key] = (sig, items)
+    return [c.model_copy() for c in items]
 
 def _pretty_title(stem: str) -> str:
     s = re.sub(r"[_\-]+", " ", stem).strip()

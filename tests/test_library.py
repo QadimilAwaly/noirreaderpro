@@ -94,3 +94,54 @@ def test_multi_root_merging(tmp_path: Path):
     titles = [n.judul for n in novels]
     assert "Alpha Novel" in titles
     assert "Beta Novel" in titles
+
+
+def test_library_caching_and_invalidation(tmp_path: Path):
+    lib.clear_library_cache()
+    root = tmp_path / "cache_lib"
+    root.mkdir()
+    novel1 = root / "Novel 1"
+    novel1.mkdir()
+    (novel1 / "Chapter_01.txt").write_text("Isi 1", encoding="utf-8")
+
+    # Initial load
+    novels1 = lib.load_library(str(root))
+    assert len(novels1) == 1
+    assert novels1[0].judul == "Novel 1"
+
+    # Consecutive load returns cached catalog
+    novels2 = lib.load_library(str(root))
+    assert len(novels2) == 1
+    assert novels2[0].judul == "Novel 1"
+
+    # Add a new novel folder -> cache is invalidated
+    novel2 = root / "Novel 2"
+    novel2.mkdir()
+    (novel2 / "Chapter_01.txt").write_text("Isi 2", encoding="utf-8")
+
+    novels3 = lib.load_library(str(root))
+    assert len(novels3) == 2
+    titles = [n.judul for n in novels3]
+    assert "Novel 1" in titles
+    assert "Novel 2" in titles
+
+
+def test_build_chapter_list_caching(tmp_path: Path):
+    lib.clear_library_cache()
+    folder = tmp_path / "Novel Test"
+    folder.mkdir()
+    (folder / "Chapter_01.txt").write_text("Bab 1", encoding="utf-8")
+
+    chaps1 = lib.build_chapter_list(str(folder))
+    assert len(chaps1) == 1
+    assert chaps1[0].title == "Chapter 01"
+
+    # Second call returns cached list
+    chaps2 = lib.build_chapter_list(str(folder))
+    assert len(chaps2) == 1
+
+    # Adding file invalidates cache
+    (folder / "Chapter_02.txt").write_text("Bab 2", encoding="utf-8")
+    chaps3 = lib.build_chapter_list(str(folder))
+    assert len(chaps3) == 2
+    assert chaps3[1].title == "Chapter 02"

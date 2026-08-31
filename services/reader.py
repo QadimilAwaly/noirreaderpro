@@ -15,6 +15,14 @@ from typing import Optional
 
 from models.novel import ChapterContent
 
+# In-memory cache for parsed library_index.json data in reader:
+# index_path_resolved -> (mtime_ns, dict[novel_id, list[dict]])
+_indexed_reader_cache: dict[str, tuple[int, dict[str, list[dict]]]] = {}
+
+
+def clear_reader_cache() -> None:
+    """Bersihkan cache file library_index.json di reader."""
+    _indexed_reader_cache.clear()
 
 def format_plain_markdown(text: str) -> str:
     """Escape HTML, lalu **tebal** / *miring*, lalu tiap baris non-kosong -> <p>."""
@@ -54,22 +62,56 @@ def _parse_md(content: str) -> tuple[str, Optional[str]]:
 
 
 def _get_from_indexed(root: str, novel_id: str, chapter_index: int):
+    if not root:
+        return None
     idx_path = Path(root) / "library_index.json"
     if not idx_path.exists():
         return None
-    with idx_path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    chaps = [c for c in data.get("chapters", []) if c.get("novel_id") == novel_id]
-    chaps.sort(key=lambda c: (c.get("nomor_chapter", 0)))
-    if chapter_index < 0 or chapter_index >= len(chaps):
+    try:
+        mtime = idx_path.stat().st_mtime_ns
+    except OSError:
         return None
+
+    cache_key = str(idx_path.resolve())
+    cached = _indexed_reader_cache.get(cache_key)
+
+    if cached is not None and cached[0] == mtime:
+        by_novel = cached[1]
+    else:
+        try:
+            with idx_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+            return None
+
+        if not isinstance(data, dict):
+            return None
+
+        by_novel = {}
+        for c in data.get("chapters", []):
+            nid = c.get("novel_id", "")
+            by_novel.setdefault(nid, []).append(c)
+
+        for chaps_list in by_novel.values():
+            chaps_list.sort(key=lambda c: (c.get("nomor_chapter", 0)))
+
+        _indexed_reader_cache[cache_key] = (mtime, by_novel)
+
+    chaps = by_novel.get(novel_id)
+    if not chaps and "_" in novel_id:
+        for nid in by_novel:
+            if novel_id.startswith(nid):
+                chaps = by_novel[nid]
+                break
+
+    if not chaps or chapter_index < 0 or chapter_index >= len(chaps):
+        return None
+
     c = chaps[chapter_index]
     trans = format_plain_markdown(c.get("teks_terjemahan", "") or "")
     orig_raw = (c.get("teks_asli") or "").strip()
     orig = format_plain_markdown(c.get("teks_asli", "")) if orig_raw else None
-    # judul chapter dari md jika ada? indexed pakai judul_chapter
     return trans, orig, c.get("judul_chapter", f"Chapter {c.get('nomor_chapter', chapter_index+1)}")
-
 
 def get_chapter_content(
     root: str,

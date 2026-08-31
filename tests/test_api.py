@@ -243,3 +243,47 @@ def test_chapter_get_auto_bookmarks_single_write(tmp_path: Path, monkeypatch):
     prog_data3 = client.get(f"/api/progress?novel_id={novel_id}").json()
     assert prog_data3["current_chapter_index"] == 0
     assert len(prog_data3["bookmarks"]) == 2
+
+
+def test_novels_api_caching_and_invalidation(tmp_path: Path, monkeypatch):
+    from services.library import clear_library_cache
+    from services.epub import clear_epub_cache
+    clear_library_cache()
+    clear_epub_cache()
+
+    lib_dir = tmp_path / "Cached_Library"
+    lib_dir.mkdir()
+    novel1 = lib_dir / "Novel Alpha"
+    novel1.mkdir()
+    (novel1 / "Chapter_01.txt").write_text("Konten Alpha.", encoding="utf-8")
+
+    device_cfg = tmp_path / "device_config.json"
+    monkeypatch.setattr(core.config, "DEVICE_CONFIG_JSON", device_cfg)
+    client.post("/api/set-library-root", json={"path": str(lib_dir)})
+
+    # First GET /api/novels
+    res1 = client.get("/api/novels")
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert len(data1["novels"]) == 1
+    assert data1["novels"][0]["judul"] == "Novel Alpha"
+
+    # Second GET /api/novels returns identical catalog from cache
+    res2 = client.get("/api/novels")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert len(data2["novels"]) == 1
+    assert data2["novels"][0]["id"] == data1["novels"][0]["id"]
+
+    # Add a second novel -> cache invalidates automatically
+    novel2 = lib_dir / "Novel Beta"
+    novel2.mkdir()
+    (novel2 / "Chapter_01.txt").write_text("Konten Beta.", encoding="utf-8")
+
+    res3 = client.get("/api/novels")
+    assert res3.status_code == 200
+    data3 = res3.json()
+    assert len(data3["novels"]) == 2
+    titles = [n["judul"] for n in data3["novels"]]
+    assert "Novel Alpha" in titles
+    assert "Novel Beta" in titles
