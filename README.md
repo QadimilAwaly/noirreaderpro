@@ -1,111 +1,132 @@
 # Noir Reader Pro
 
-Pembaca novel lokal berarsitektur bersih (FastAPI + frontend modular, murni Python — ramah Termux).
-Membaca koleksi dari **Novel_Library** (hasil translator: `library_index.json` + `Chapter_NN.md`),
-koleksi `.txt` lama, maupun file `.epub`. Bookmark per-novel, tema Soft Noir (terang/gelap).
+> **Pembaca Novel Lokal — Bersih, Cepat, dan Intuitif.**  
+> Arsitektur FastAPI + frontend modular, dirancang untuk pengalaman membaca yang fokus tanpa gangguan. Kompatibel penuh dengan ekosistem Novel Translator Pro.
 
-## Fitur
-- Daftar novel otomatis (mode *indexed* dari `library_index.json`, atau *legacy* scan folder).
-- Mendukung multi-folder library (bisa lebih dari 1 folder via `library_roots` di `config.json`).
-- Auto-load dan resume otomatis novel & chapter terakhir saat aplikasi dibuka.
-- Auto-bookmarking otomatis setiap chapter yang dibuka.
-- Baca `.txt`, `.md`, dan `.epub` (EPUB di-parse via stdlib — tanpa dependensi berat, aman Termux).
-- Toggle "Tampilkan teks asli" untuk chapter yang punya terjemahan + asli.
-- Bookmark per-novel, disimpan in-folder → ikut Resilio Sync.
-- Auto-save progres (chapter terakhir dibaca) per novel.
-- Pengaturan real-time: ukuran font, jarak baris, indentasi, margin, lebar baca.
-- Panel samping collapsible (Koleksi Novel, Daftar Chapter) yang responsif di desktop & mobile.
-- Tema terang/gelap (default terang), kontras lembut "Soft Noir".
-- Library root diatur manual melalui file **`config.json`** di direktori app.
+---
 
-## Menjalankan
-Prasyarat: Python 3.11+.
+## Ringkasan Produk
+
+Noir Reader Pro adalah aplikasi pembaca novel lokal berbasis web yang mengutamakan kecepatan, privasi data, dan kenyamanan visual. Dibangun di atas Python (FastAPI) dengan frontend responsif, aplikasi ini membaca koleksi dari berbagai format — `.txt`, `.md`, `.epub`, serta katalog hasil terjemahan — tanpa memerlukan server eksternal atau koneksi internet aktif saat membaca.
+
+---
+
+## Fitur Utama
+
+- **Katalog Otomatis** — Deteksi koleksi dari `library_index.json` (hasil translator) atau pemindaian folder langsung (mode legacy).
+- **Dukungan Multi-Format** — `.txt`, `.md`, `.epub` (parser bawaan tanpa dependensi berat), serta integrasi dengan hasil terjemahan (`Chapter_NN.md` + `library_index.json`).
+- **Multi-Folder Library** — Konfigurasi beberapa direktori koleksi melalui `library_roots` di `config.json`.
+- **Resume Otomatis** — Melanjutkan membaca ke novel dan bab terakhir setiap kali aplikasi dibuka.
+- **Bookmark Per-Novel** — Penanda bab disimpan in-folder, sinkron otomatis melalui layanan seperti Resilio Sync.
+- **Tema Soft Noir** — Antarmuka terang/gelap dengan kontras lembut, pengaturan font, jarak baris, indentasi, dan margin secara real-time.
+- **Panel Responsif** — Navigasi koleksi, daftar bab, dan pengaturan tampilan dapat disembunyikan atau ditampilkan sesuai kebutuhan, responsif di perangkat desktop maupun mobile.
+- **Navigasi Cepat** — Shortcut keyboard (`← →`, `T`, `B`, `N`, `C`, `P`, `Esc`) untuk akses efisien tanpa mengangkat tangan dari papan ketik.
+
+---
+
+## Persyaratan & Instalasi
+
+**Prasyarat:** Python 3.11+
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
-Buka browser: http://127.0.0.1:3030
+Buka peramban ke `http://127.0.0.1:3030`.
 
-### Di Termux
+### Termux (Android)
 ```bash
 pkg install python
 pip install -r requirements.txt
-termux-setup-storage        # agar bisa akses ~/storage
+termux-setup-storage   # akses penyimpanan bersama
 python main.py
 ```
-Edit `config.json` -> `"library_root": "/sdcard/Download/Novel_Library"` lalu jalankan.
+Sesuaikan `library_root` di `config.json` (mis. `/sdcard/Download/Novel_Library`) sebelum menjalankan.
 
-### Menghentikan Server & Manajemen Baterai (Termux Standby)
-Aplikasi ini berjalan sebagai server lokal uvicorn di port 3030. Saat sesi membaca selesai, hentikan server agar tablet tidak terus mengonsumsi daya baterai di latar belakang:
-- Jika berjalan di foreground terminal Termux: tekan `Ctrl + C`.
-- Jika berjalan di background atau ingin menghentikan sekaligus:
-  ```bash
-  pkill -f "python main.py"
-  ```
-- *Tips Hemat Daya:* Jalankan server secara on-demand saat ingin membaca, dan hentikan proses saat selesai untuk menghemat baterai perangkat.
+---
 
-## Menentukan Library Root (via `config.json`)
-Edit file `config.json` di direktori app:
+## Konfigurasi Cepat
+
+Edit `config.json` untuk menetapkan direktori koleksi:
+
 ```json
 {
   "library_roots": [
-    "E:\\Novel_Library",
-    "E:\\Resilio Sync\\novel_translator\\translated_novels"
+    "/sdcard/Download/Novel_Library"
   ]
 }
 ```
-*Atau untuk satu folder saja:*
-```json
-{
-  "library_root": "E:\\Novel_Library"
-}
-```
-(Field `global_storage_path` juga dikenali, selaras dengan translator.)
 
-## Format yang Didukung
-| Sumber | Cara dibaca | Teks asli |
+Field `global_storage_path` juga dikenali, selaras dengan struktur translator.
+
+---
+
+## Pengelolaan Daya & Proses (Termux)
+
+Aplikasi berjalan sebagai server lokal `uvicorn` di port 3030. Untuk menghemat daya baterai perangkat:
+
+- **Hentikan foreground:** `Ctrl + C`
+- **Hentikan proses latar belakang:** `pkill -f "python main.py"`
+- **Praktik terbaik:** Jalankan server secara on-demand saat sesi membaca, lalu hentikan setelah selesai.
+
+---
+
+## Dukungan Format
+
+| Sumber | Cara Dibaca | Teks Asli |
 |--------|-------------|-----------|
-| `library_index.json` (translator) | katalog + isi dari `chapters[]` | ya (field `teks_asli`) |
-| `Chapter_NN.md` (translator) | parse section "Hasil Terjemahan" / "Teks Asli" | ya |
-| `.txt` (legacy) | isi polos, format `**tebal**`/`*miring*` | tidak |
-| `.epub` | stdlib zipfile+xml+html.parser, spine order | tidak |
+| `library_index.json` (translator) | Katalog + isi bab dari `chapters[]` | Ya (`teks_asli`) |
+| `Chapter_NN.md` (translator) | Bagian "Hasil Terjemahan" / "Teks Asli" | Ya |
+| `.txt` (legacy) | Teks polos, format dasar (`**tebal**`, `*miring*`) | Tidak |
+| `.epub` | Parser bawaan (`zipfile` + `xml` + `html.parser`) | Tidak |
 
-Folder novel bisa berisi campuran `.txt`/`.md`/`.epub`; semua digabung & diurutkan natural-sort.
+File dalam folder novel dapat dicampur (`.txt` / `.md` / `.epub`); semua digabung dan diurutkan secara natural.
 
-## Struktur
+---
+
+## Arsitektur
+
 ```
-core/      config, paths (resolusi root + safe_join), storage (JSON atomic)
-models/    novel, settings (Pydantic)
-services/  library (katalog), reader (isi), epub (parser), progress (bookmark)
-api/       router_library, router_chapters, router_progress, router_settings
-frontend/  index.html + css (theme/layout) + js (api/state/ui-*)
-tests/     pytest (storage, paths, library, reader, epub, progress, api)
+core/       Konfigurasi, resolusi jalur (safe_join), penyimpanan atomik (JSON)
+models/     Model data novel dan pengaturan (Pydantic)
+services/   Katalog pustaka, pembaca isi, parser EPUB, penyimpanan bookmark
+api/        Router: library, chapter, progress, pengaturan
+frontend/   HTML + CSS (tema/layout) + JS (manajemen API/state/UI)
+tests/      Pytest: storage, paths, library, reader, epub, progress, API
 ```
 
-## UI — 10 Heuristik UX Nielsen
-1. **Status sistem:** indikator "Memuat…", posisi "3 / 120", auto-save hening real-time, dan toast status saat ada aksi.
-2. **Dunia nyata:** bahasa Indonesia (Bab, Pengaturan, Tandai), ikon buku & bintang.
-3. **Kontrol & kebebasan:** prev/next, hapus bookmark dgn konfirmasi, tutup panel, panel collapsible.
-4. **Konsisten:** posisi tombol tetap, shortcut keyboard (←/→, T tema, B bookmark, N novel, C chapter), selaras gaya translator.
-5. **Pencegahan error:** validasi folder otomatis, disable tombol saat boundary pertama/terakhir, konfirmasi hapus.
-6. **Pengenalan bukan ingatan:** daftar chapter terlihat, label bookmark otomatis tercatat, tooltip ikon.
-7. **Fleksibel & efisien:** shortcut, sidebars bisa disembunyikan, resume otomatis ke novel & chapter terakhir.
-8. **Estetika minimalis:** tema Soft Noir, hanya kontrol relevan, whitespace cukup.
-9. **Pemulihan error:** pesan jelas ("Folder tidak ditemukan"), bukan kode.
-10. **Bantuan:** README + empty-state yang jelaskan cara konfigurasi di `config.json`.
+---
+
+## Prinsip Desain UX
+
+Noir Reader Pro mengikuti 10 heuristik kegunaan Nielsen — mulai dari status sistem yang selalu terlihat, kontrol penuh pengguna, konsistensi antarmuka, hingga pemulihan kesalahan yang jelas dan dokumentasi yang membantu pengguna baru memahami konfigurasi dalam hitungan menit.
+
+---
 
 ## Shortcut Keyboard
-- `←` / `→` / `h` / `l` : chapter sebelumnya / berikutnya
-- `T` : ganti tema terang / gelap
-- `B` : buka panel chapter dibaca (bookmark)
-- `N` : buka / tutup panel koleksi novel
-- `C` : buka / tutup panel daftar chapter
-- `P` : buka / tutup pengaturan tampilan
-- `Esc` : tutup panel / drawer yang aktif
 
-## Pengembangan & Test
-```bash
-pip install -r requirements.txt
-python -m pytest -q
-```
+| Tombol | Fungsi |
+|-------|--------|
+| `←` / `→` / `h` / `l` | Bab sebelumnya / berikutnya |
+| `T` | Ganti tema (terang / gelap) |
+| `B` | Buka panel bookmark |
+| `N` | Panel koleksi novel |
+| `C` | Panel daftar bab |
+| `P` | Pengaturan tampilan |
+| `Esc` | Tutup panel aktif |
+
+---
+
+## Lisensi
+
+MIT License — lihat file `LICENSE` untuk ketentuan lengkap.
+
+---
+
+## Kontribusi & Umpan Balik
+
+Laporan masalah, permintaan fitur, atau kontribusi kode diterima melalui repositori proyek. Pastikan semua perubahan disertai pengujian (`pytest`) sebelum diajukan.
+
+---
+
+*Noir Reader Pro v1.0.0 — Dibangun untuk pembaca yang menghargai privasi, performa, dan estetika minimalis.*
