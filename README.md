@@ -1,7 +1,8 @@
 # Noir Reader Pro
 
 > **Pembaca Novel Lokal — Bersih, Cepat, dan Intuitif.**  
-> Arsitektur FastAPI + frontend modular, dirancang untuk pengalaman membaca yang fokus tanpa gangguan. Kompatibel penuh dengan ekosistem Novel Translator Pro.
+> Arsitektur FastAPI + frontend modular, dirancang untuk pengalaman membaca yang fokus tanpa gangguan. Kompatibel penuh dengan ekosistem Novel Translator Pro.  
+> 🌐 **Landing Page:** [https://qadimilawaly.github.io/noirreaderpro/](https://qadimilawaly.github.io/noirreaderpro/)
 
 ---
 
@@ -32,7 +33,7 @@ Noir Reader Pro adalah aplikasi pembaca novel lokal berbasis web yang mengutamak
 pip install -r requirements.txt
 python main.py
 ```
-Buka peramban ke `http://127.0.0.1:3030`.
+Buka peramban ke `http://127.0.0.1:3030` (Aplikasi Reader) atau `http://127.0.0.1:3030/landing` (Landing Page).
 
 ### Termux (Android)
 ```bash
@@ -126,6 +127,11 @@ MIT License — lihat file `LICENSE` untuk ketentuan lengkap.
 ## Kontribusi & Umpan Balik
 
 Laporan masalah, permintaan fitur, atau kontribusi kode diterima melalui repositori proyek. Pastikan semua perubahan disertai pengujian (`pytest`) sebelum diajukan.
+---
+
+## Disclaimer
+
+> **Catatan:** Ini adalah *vibe coding project* pribadi seorang yang bukan background programmer. Dibuat untuk kebutuhan membaca novel lokal secara mandiri, fokus, dan nyaman.
 
 ---
 

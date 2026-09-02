@@ -32,6 +32,13 @@ def test_no_cache_middleware_headers():
     assert "max-age" in static_res.headers.get("cache-control", "")
     assert "no-store" not in static_res.headers.get("cache-control", "")
 
+    # 4. Landing HTML allows caching with revalidation
+    landing_res = client.get("/landing")
+    assert landing_res.status_code == 200
+    assert "no-cache" in landing_res.headers.get("cache-control", "")
+    assert "no-store" not in landing_res.headers.get("cache-control", "")
+    assert "Noir Reader Pro" in landing_res.text
+
 def test_settings_roundtrip(tmp_path: Path, monkeypatch):
     test_settings_file = tmp_path / "test_settings.json"
     import api.router_settings

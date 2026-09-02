@@ -38,8 +38,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         elif path.startswith("/static/"):
             # Static CSS, JS, images are cacheable by browser with conditional validation
             response.headers["Cache-Control"] = "public, max-age=3600"
-        elif path == "/":
-            # Root HTML is cached with revalidation (ETag/304) so updates are immediate
+        elif path in ("/", "/landing"):
+            # Root HTML & Landing are cached with revalidation (ETag/304) so updates are immediate
             response.headers["Cache-Control"] = "no-cache"
         return response
 
@@ -61,6 +61,16 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND)), name="static")
 def index():
     return FileResponse(
         str(FRONTEND / "index.html"),
+        headers={
+            "Cache-Control": "no-cache",
+        },
+    )
+
+@app.get("/landing")
+def landing():
+    landing_file = BASE_DIR / "landing.html"
+    return FileResponse(
+        str(landing_file),
         headers={
             "Cache-Control": "no-cache",
         },
