@@ -5,12 +5,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from core.storage import load_json, safe_save_json
-from core.config import BASE_DIR
+import core.config
 from models.settings import ReaderSettings
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
-SETTINGS_JSON = BASE_DIR / "reader_settings.json"
+SETTINGS_JSON = getattr(core.config, "SETTINGS_JSON", core.config.BASE_DIR / "reader_settings.json")
 
 
 class SettingsRequest(BaseModel):
