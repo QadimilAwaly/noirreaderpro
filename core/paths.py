@@ -17,7 +17,13 @@ from typing import Any, List, Union
 
 import core.config
 
+_roots_cache: tuple | None = None
 
+
+def clear_roots_cache() -> None:
+    """Bersihkan cache resolusi library roots."""
+    global _roots_cache
+    _roots_cache = None
 def get_device_config_path() -> Path:
     getter = getattr(core.config, "get_device_config_path", None)
     if callable(getter):
@@ -48,13 +54,13 @@ def load_device_config() -> dict:
 
 
 def save_device_config(data: dict) -> None:
+    clear_roots_cache()
     target_path = get_device_config_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = target_path.with_suffix(target_path.suffix + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     tmp.replace(target_path)
-
 
 def normalize_path(p: Union[str, Path, Any]) -> Path:
     """
@@ -110,8 +116,32 @@ def _extract_paths(val: Any) -> List[str]:
     return cleaned
 
 
+def _roots_cache_sig() -> tuple:
+    env_val = (
+        os.environ.get("NOIR_LIBRARY_ROOTS")
+        or os.environ.get("NOIR_LIBRARY_ROOT")
+        or os.environ.get("LIBRARY_ROOTS")
+        or os.environ.get("LIBRARY_ROOT")
+        or ""
+    )
+    dev_p = get_device_config_path()
+    dev_mtime = dev_p.stat().st_mtime_ns if dev_p.exists() else 0
+    cfg_p = get_config_path()
+    cfg_mtime = cfg_p.stat().st_mtime_ns if cfg_p.exists() else 0
+    return (env_val, str(dev_p), dev_mtime, str(cfg_p), cfg_mtime)
+
+
 def resolve_library_roots() -> List[str]:
     """Kembalikan list path absolut library roots yang valid (tanpa duplikat)."""
+    global _roots_cache
+    sig = None
+    try:
+        sig = _roots_cache_sig()
+        if _roots_cache is not None and _roots_cache[0] == sig:
+            return list(_roots_cache[1])
+    except Exception:
+        sig = None
+
     # 0. Environment variable override
     env_paths_raw = (
         os.environ.get("NOIR_LIBRARY_ROOTS")
@@ -129,8 +159,9 @@ def resolve_library_roots() -> List[str]:
                 if resolved not in valid_env:
                     valid_env.append(resolved)
         if valid_env:
+            if sig is not None:
+                _roots_cache = (sig, valid_env)
             return valid_env
-
     # 1. device_config.json override
     dev = load_device_config()
     dev_paths = _extract_paths(dev.get("library_roots") or dev.get("library_root"))
@@ -142,6 +173,8 @@ def resolve_library_roots() -> List[str]:
             if resolved not in valid_dev:
                 valid_dev.append(resolved)
     if valid_dev:
+        if sig is not None:
+            _roots_cache = (sig, valid_dev)
         return valid_dev
 
     # 2. config.json committed
@@ -157,6 +190,8 @@ def resolve_library_roots() -> List[str]:
             if resolved not in valid_cfg:
                 valid_cfg.append(resolved)
     if valid_cfg:
+        if sig is not None:
+            _roots_cache = (sig, valid_cfg)
         return valid_cfg
 
     # 3. fallback default
@@ -167,8 +202,13 @@ def resolve_library_roots() -> List[str]:
         fallback_raw = getattr(core.config, "DEFAULT_LIBRARY_FALLBACK", core.config.BASE_DIR / "Novel_Library")
     fallback = normalize_path(fallback_raw)
     if fallback.exists() and fallback.is_dir():
-        return [str(fallback.resolve())]
+        res = [str(fallback.resolve())]
+        if sig is not None:
+            _roots_cache = (sig, res)
+        return res
 
+    if sig is not None:
+        _roots_cache = (sig, [])
     return []
 
 
