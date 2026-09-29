@@ -25,30 +25,30 @@ def _lock_for(path: str) -> threading.Lock:
 
 def safe_save_json(filepath: str | Path, data: dict) -> None:
     filepath = Path(filepath)
-    filepath.parent.mkdir(parents=True, exist_ok=True)
-    lock = _lock_for(str(filepath.resolve()))
+    parent = filepath.parent
+    if not parent.exists():
+        parent.mkdir(parents=True, exist_ok=True)
+    lock = _lock_for(str(filepath))
+    payload_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    tmp_path = filepath.with_suffix(filepath.suffix + f".tmp_{os.getpid()}")
     with lock:
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(filepath.parent), prefix=".tmp_", suffix=".json"
-        )
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, str(filepath))
+            with open(tmp_path, "wb") as f:
+                f.write(payload_bytes)
+            os.replace(tmp_path, filepath)
         except Exception:
-            if os.path.exists(tmp_path):
+            if tmp_path.exists():
                 try:
-                    os.remove(tmp_path)
+                    tmp_path.unlink()
                 except OSError:
                     pass
             raise
-
 
 def load_json(filepath: str | Path, default: dict | None = None) -> dict:
     filepath = Path(filepath)
     if not filepath.exists():
         return default if default is not None else {}
-    lock = _lock_for(str(filepath.resolve()))
+    lock = _lock_for(str(filepath))
     with lock:
         try:
             with filepath.open("r", encoding="utf-8") as f:

@@ -18,22 +18,28 @@ from models.novel import ChapterContent
 # In-memory cache for parsed library_index.json data in reader:
 # index_path_resolved -> (mtime_ns, dict[novel_id, list[dict]])
 _indexed_reader_cache: dict[str, tuple[int, dict[str, list[dict]]]] = {}
+_chapter_content_cache: dict[tuple, tuple[int, ChapterContent]] = {}
 
 
 def clear_reader_cache() -> None:
-    """Bersihkan cache file library_index.json di reader."""
+    """Bersihkan cache file library_index.json & isi chapter di reader."""
     _indexed_reader_cache.clear()
+    _chapter_content_cache.clear()
+
+
+_RE_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_RE_ITALIC = re.compile(r"\*(.+?)\*")
+
 
 def format_plain_markdown(text: str) -> str:
     """Escape HTML, lalu **tebal** / *miring*, lalu tiap baris non-kosong -> <p>."""
+    if not text:
+        return ""
     safe = html.escape(text)
-    safe = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe)
-    safe = re.sub(r"\*(.+?)\*", r"<em>\1</em>", safe)
-    out = []
-    for line in safe.split("\n"):
-        if line.strip():
-            out.append(f'<p class="novel-paragraph">{line.strip()}</p>')
-    return "\n".join(out)
+    safe = _RE_BOLD.sub(r"<strong>\1</strong>", safe)
+    safe = _RE_ITALIC.sub(r"<em>\1</em>", safe)
+    lines = safe.split("\n")
+    return "\n".join(f'<p class="novel-paragraph">{line.strip()}</p>' for line in lines if line.strip())
 
 
 _MD_DIVIDER = re.compile(r"^---+\s*$", re.MULTILINE)
@@ -65,14 +71,12 @@ def _get_from_indexed(root: str, novel_id: str, chapter_index: int):
     if not root:
         return None
     idx_path = Path(root) / "library_index.json"
-    if not idx_path.exists():
-        return None
     try:
         mtime = idx_path.stat().st_mtime_ns
-    except OSError:
+    except (FileNotFoundError, OSError):
         return None
 
-    cache_key = str(idx_path.resolve())
+    cache_key = str(idx_path)
     cached = _indexed_reader_cache.get(cache_key)
 
     if cached is not None and cached[0] == mtime:
@@ -108,10 +112,16 @@ def _get_from_indexed(root: str, novel_id: str, chapter_index: int):
         return None
 
     c = chaps[chapter_index]
-    trans = format_plain_markdown(c.get("teks_terjemahan", "") or "")
+    if "_cached_parsed" in c:
+        return c["_cached_parsed"]
+    raw_trans = c.get("teks_terjemahan", "") or c.get("translation", "") or ""
+    trans = format_plain_markdown(raw_trans)
     orig_raw = (c.get("teks_asli") or "").strip()
-    orig = format_plain_markdown(c.get("teks_asli", "")) if orig_raw else None
-    return trans, orig, c.get("judul_chapter", f"Chapter {c.get('nomor_chapter', chapter_index+1)}")
+    orig = format_plain_markdown(orig_raw) if orig_raw else None
+    title = c.get("judul_chapter", f"Chapter {c.get('nomor_chapter', chapter_index+1)}")
+    parsed = (trans, orig, title)
+    c["_cached_parsed"] = parsed
+    return parsed
 
 def get_chapter_content(
     root: str,
@@ -126,6 +136,40 @@ def get_chapter_content(
     ref = chapter.ref
     source = chapter.source
     title = chapter.title
+
+    # 1. Cek chapter content cache
+    cache_key = None
+    mtime = 0
+    try:
+        if source == "indexed":
+            idx_p = Path(root) / "library_index.json"
+            mtime = idx_p.stat().st_mtime_ns
+            cache_key = ("indexed", str(idx_p), novel_id, chapter.index)
+        elif source == "epub":
+            epub_name, _, epub_idx = ref.partition("#")
+            ep_p = Path(novel_folder) / epub_name
+            mtime = ep_p.stat().st_mtime_ns
+            cache_key = ("epub", str(ep_p), int(epub_idx or 0))
+        else:  # md / txt
+            ch_p = Path(novel_folder) / ref
+            mtime = ch_p.stat().st_mtime_ns
+            cache_key = (source, str(ch_p))
+    except (FileNotFoundError, OSError):
+        cache_key = None
+
+    if cache_key is not None:
+        cached = _chapter_content_cache.get(cache_key)
+        if cached is not None and cached[0] == mtime:
+            c_obj = cached[1]
+            return ChapterContent(
+                ref=c_obj.ref,
+                title=c_obj.title,
+                translation=c_obj.translation,
+                original=c_obj.original,
+                index=chapter.index,
+                total=-1,
+                source=c_obj.source,
+            )
 
     translation = ""
     original: Optional[str] = None
@@ -152,7 +196,7 @@ def get_chapter_content(
             translation = format_plain_markdown(raw)
             original = None
 
-    return ChapterContent(
+    content = ChapterContent(
         ref=ref,
         title=title,
         translation=translation,
@@ -161,3 +205,6 @@ def get_chapter_content(
         total=-1,  # diisi caller
         source=source,
     )
+    if cache_key is not None and mtime > 0:
+        _chapter_content_cache[cache_key] = (mtime, content)
+    return content

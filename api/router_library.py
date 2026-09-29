@@ -63,6 +63,10 @@ def set_library_root(req: SetRootRequest):
             detail="Tidak ada folder valid yang ditemukan. Pastikan direktori ada di filesystem.",
         )
 
+    lib_service.clear_library_cache()
+    from api.router_chapters import clear_novel_location_cache
+    clear_novel_location_cache()
+
     novels = lib_service.load_library(valid_roots)
     return {
         "success": True,

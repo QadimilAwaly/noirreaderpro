@@ -10,6 +10,7 @@ from core.paths import (
     load_device_config,
     save_device_config,
     _extract_paths,
+    normalize_path,
 )
 from fastapi import HTTPException
 
@@ -42,7 +43,7 @@ def persist_device_roots(paths: Union[str, List[str]]) -> List[str]:
     raw_paths = _extract_paths(paths)
     valid_paths: List[str] = []
     for p in raw_paths:
-        pp = Path(p)
+        pp = normalize_path(p)
         if pp.exists() and pp.is_dir():
             resolved = str(pp.resolve())
             if resolved not in valid_paths:

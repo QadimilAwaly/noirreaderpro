@@ -11,7 +11,9 @@ terurut natural-sort. EPUB di-expand jadi banyak chapter internal.
 from __future__ import annotations
 
 import json
+import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Sequence, Union
 
@@ -40,10 +42,16 @@ def _novel_id(folder_path: str) -> str:
     return "nov_" + re.sub(r"[^a-z0-9]+", "_", Path(folder_path).name.lower()).strip("_")
 
 
-def natural_sort_key(s: str):
-    return [float(t) if t.replace(".", "", 1).isdigit() else t.lower()
-            for t in re.split(r"([0-9]+(?:\.[0-9]+)?)", s)]
+_NUM_SPLIT_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)")
 
+
+@lru_cache(maxsize=4096)
+def natural_sort_key(s: str) -> tuple:
+    return tuple(
+        float(t) if t.replace(".", "", 1).isdigit() else t.lower()
+        for t in _NUM_SPLIT_RE.split(s)
+        if t
+    )
 
 def _try_indexed(root: str) -> List[NovelInfo] | None:
     idx_path = Path(root) / INDEX_FILENAME
@@ -57,7 +65,7 @@ def _try_indexed(root: str) -> List[NovelInfo] | None:
     root_key = str(Path(root).resolve())
     cached = _indexed_catalog_cache.get(root_key)
     if cached is not None and cached[0] == mtime:
-        return [n.model_copy() for n in cached[1]]
+        return list(cached[1])
 
     try:
         with idx_path.open("r", encoding="utf-8") as f:
@@ -93,24 +101,23 @@ def _try_indexed(root: str) -> List[NovelInfo] | None:
         ))
     out.sort(key=lambda x: natural_sort_key(x.judul))
     _indexed_catalog_cache[root_key] = (mtime, out)
-    return [n.model_copy() for n in out]
+    return list(out)
 
 
 def _scan_legacy(root: str) -> List[NovelInfo]:
     root_path = Path(root)
     try:
+        root_mtime = root_path.stat().st_mtime_ns
         entries = [e for e in root_path.iterdir() if e.is_dir()]
         entries.sort(key=lambda e: natural_sort_key(e.name))
-        root_mtime = root_path.stat().st_mtime_ns
-        sub_mtimes = tuple((e.name, e.stat().st_mtime_ns) for e in entries)
-        sig = (root_mtime, sub_mtimes)
+        sig = (root_mtime, tuple(e.name for e in entries))
     except OSError:
         return []
 
     root_key = str(root_path.resolve())
     cached = _legacy_catalog_cache.get(root_key)
     if cached is not None and cached[0] == sig:
-        return [n.model_copy() for n in cached[1]]
+        return list(cached[1])
 
     out: List[NovelInfo] = []
     for d in entries:
@@ -127,7 +134,7 @@ def _scan_legacy(root: str) -> List[NovelInfo]:
         ))
     out.sort(key=lambda x: natural_sort_key(x.judul))
     _legacy_catalog_cache[root_key] = (sig, out)
-    return [n.model_copy() for n in out]
+    return list(out)
 
 
 def load_library(root_or_roots: Union[str, Sequence[str]]) -> List[NovelInfo]:
@@ -212,7 +219,7 @@ def _get_indexed_chapters(root: str, novel_id: str) -> List[ChapterInfo]:
             index=i,
         ))
     _indexed_chapters_cache[cache_key] = (mtime, items)
-    return [c.model_copy() for c in items]
+    return list(items)
 
 
 def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") -> List[ChapterInfo]:
@@ -247,16 +254,14 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
              if p.suffix.lower() in (".txt", ".md", ".epub") and p.is_file()],
             key=lambda p: natural_sort_key(p.name),
         )
-        file_mtimes = tuple((p.name, p.stat().st_mtime_ns) for p in files)
-        sig = (folder_mtime, file_mtimes)
+        sig = (folder_mtime, tuple(p.name for p in files))
     except OSError:
         return []
 
     cache_key = str(folder.resolve())
     cached = _chapter_list_cache.get(cache_key)
     if cached is not None and cached[0] == sig:
-        return [c.model_copy() for c in cached[1]]
-
+        return list(cached[1])
     items: List[ChapterInfo] = []
     idx_counter = 0
     for p in files:
@@ -297,7 +302,7 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
     for i, c in enumerate(items):
         c.index = i
     _chapter_list_cache[cache_key] = (sig, items)
-    return [c.model_copy() for c in items]
+    return list(items)
 
 def _pretty_title(stem: str) -> str:
     s = re.sub(r"[_\-]+", " ", stem).strip()
