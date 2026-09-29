@@ -17,6 +17,13 @@ from models.settings import Bookmark, Progress
 
 _PREFIX = "."
 
+_progress_cache: dict[str, tuple[int, Progress, dict]] = {}
+
+
+def clear_progress_cache() -> None:
+    """Bersihkan cache progres in-memory (untuk testing/reset)."""
+    _progress_cache.clear()
+
 
 def _progress_path(novel_folder: str) -> Path:
     name = Path(novel_folder).name
@@ -25,7 +32,21 @@ def _progress_path(novel_folder: str) -> Path:
 
 
 def load_progress(novel_folder: str) -> Progress:
-    data = load_json(_progress_path(novel_folder))
+    path = _progress_path(novel_folder)
+    path_key = str(path.resolve())
+    if not path.exists():
+        return Progress()
+
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+
+    cached = _progress_cache.get(path_key)
+    if cached is not None and cached[0] == mtime:
+        return cached[1].model_copy(deep=True)
+
+    data = load_json(path)
     try:
         prog = Progress(
             current_chapter_index=int(data.get("current_chapter_index", 0)),
@@ -33,6 +54,7 @@ def load_progress(novel_folder: str) -> Progress:
         )
         # pastikan urut by chapter_index untuk tampilan
         prog.bookmarks.sort(key=lambda b: b.chapter_index)
+        _progress_cache[path_key] = (mtime, prog.model_copy(deep=True), prog.model_dump())
         return prog
     except (ValueError, TypeError):
         return Progress()
@@ -40,9 +62,21 @@ def load_progress(novel_folder: str) -> Progress:
 
 def save_progress(novel_folder: str, progress: Progress) -> None:
     progress.bookmarks.sort(key=lambda b: b.chapter_index)
-    safe_save_json(_progress_path(novel_folder), progress.model_dump())
+    path = _progress_path(novel_folder)
+    path_key = str(path.resolve())
+    payload = progress.model_dump()
 
+    cached = _progress_cache.get(path_key)
+    if cached is not None and cached[2] == payload and path.exists():
+        # Lewati penulisan disk jika data identik (hemat siklus flash & daya baterai)
+        return
 
+    safe_save_json(path, payload)
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    _progress_cache[path_key] = (mtime, progress.model_copy(deep=True), payload)
 def add_bookmark_raw(prog: Progress, chapter_index: int, label: str = "") -> Progress:
     bm = Bookmark(
         id=f"bm_{uuid.uuid4().hex[:10]}",

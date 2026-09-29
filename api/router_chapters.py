@@ -17,6 +17,14 @@ router = APIRouter(prefix="/api", tags=["chapters"])
 
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
+_novel_location_cache: dict[tuple, tuple[Optional[str], Optional[str]]] = {}
+_novel_by_ref_cache: dict[tuple, tuple[Optional[str], Optional[str], Optional[str]]] = {}
+
+
+def clear_novel_location_cache() -> None:
+    """Bersihkan cache pencarian lokasi folder novel."""
+    _novel_location_cache.clear()
+    _novel_by_ref_cache.clear()
 
 
 def find_novel_location(
@@ -30,7 +38,11 @@ def find_novel_location(
         return None, None
 
     root_list = [roots] if isinstance(roots, str) else list(roots)
-
+    cache_key = (tuple(root_list), novel_id)
+    if cache_key in _novel_location_cache:
+        cached_root, cached_folder = _novel_location_cache[cache_key]
+        if cached_folder and Path(cached_folder).exists():
+            return cached_root, cached_folder
     for root in root_list:
         if not root or not Path(root).exists():
             continue
@@ -49,14 +61,17 @@ def find_novel_location(
                         if fp and not Path(fp).is_absolute():
                             fp = str((root_path / fp).resolve())
                         if fp and Path(fp).is_dir():
+                            _novel_location_cache[cache_key] = (root, fp)
                             return root, fp
-
                         # Cari by judul/folder name di root
                         want = _norm(n.get("judul", "") or Path(fp).name)
                         for d in root_path.iterdir():
                             if d.is_dir() and _norm(d.name) == want:
-                                return root, str(d)
+                                matched = str(d)
+                                _novel_location_cache[cache_key] = (root, matched)
+                                return root, matched
                         if fp:
+                            _novel_location_cache[cache_key] = (root, fp)
                             return root, fp
             except (json.JSONDecodeError, OSError):
                 pass
@@ -68,7 +83,9 @@ def find_novel_location(
                     nid = "nov_" + _norm(d.name)
                     suffix = _norm(root_path.name)
                     if nid == novel_id or f"{nid}_{suffix}" == novel_id:
-                        return root, str(d)
+                        matched = str(d)
+                        _novel_location_cache[cache_key] = (root, matched)
+                        return root, matched
         except OSError:
             pass
 
@@ -86,7 +103,11 @@ def find_novel_by_ref(
         return None, None, None
 
     root_list = [roots] if isinstance(roots, str) else list(roots)
-
+    cache_key = (tuple(root_list), ref)
+    if cache_key in _novel_by_ref_cache:
+        cached_root, cached_folder, cached_nid = _novel_by_ref_cache[cache_key]
+        if cached_folder and Path(cached_folder).exists():
+            return cached_root, cached_folder, cached_nid
     for root in root_list:
         if not root or not Path(root).exists():
             continue
@@ -107,8 +128,11 @@ def find_novel_by_ref(
                                 if fp and not Path(fp).is_absolute():
                                     fp = str((root_path / fp).resolve())
                                 if fp and Path(fp).is_dir():
+                                    _novel_by_ref_cache[cache_key] = (root, fp, target_nid)
                                     return root, fp, target_nid
-                                return root, str(root_path / n.get("judul", "novel")), target_nid
+                                fallback_fp = str(root_path / n.get("judul", "novel"))
+                                _novel_by_ref_cache[cache_key] = (root, fallback_fp, target_nid)
+                                return root, fallback_fp, target_nid
             except (json.JSONDecodeError, OSError):
                 pass
 
@@ -119,7 +143,9 @@ def find_novel_by_ref(
                     nid = "nov_" + _norm(d.name)
                     chaps = lib_service.build_chapter_list(str(d), novel_id=nid, root=root)
                     if any(c.ref == ref or str(c.index) == ref for c in chaps):
-                        return root, str(d), nid
+                        matched_d = str(d)
+                        _novel_by_ref_cache[cache_key] = (root, matched_d, nid)
+                        return root, matched_d, nid
         except OSError:
             pass
 
