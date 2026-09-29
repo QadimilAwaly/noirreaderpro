@@ -16,8 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 import uvicorn
-from core.config import BASE_DIR, DEFAULT_HOST, DEFAULT_PORT
-
+from core.config import BASE_DIR, DEFAULT_HOST, DEFAULT_PORT, get_host, get_port
 from api.router_library import router as library_router
 from api.router_chapters import router as chapters_router
 from api.router_progress import router as progress_router
@@ -83,4 +82,13 @@ def health():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=DEFAULT_HOST, port=DEFAULT_PORT)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Noir Reader Pro Server")
+    parser.add_argument("--host", default=None, help=f"Host address to bind (default: {get_host()})")
+    parser.add_argument("-p", "--port", type=int, default=None, help=f"Port to bind (default: {get_port()})")
+    args = parser.parse_args()
+
+    host = args.host or get_host()
+    port = args.port or get_port()
+    uvicorn.run(app, host=host, port=port)

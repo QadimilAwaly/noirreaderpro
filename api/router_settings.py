@@ -1,6 +1,7 @@
 """Endpoint settings & tema (reader layout)."""
 from __future__ import annotations
 
+from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -12,6 +13,16 @@ router = APIRouter(prefix="/api", tags=["settings"])
 
 SETTINGS_JSON = getattr(core.config, "SETTINGS_JSON", core.config.BASE_DIR / "reader_settings.json")
 
+
+def _settings_file() -> Path:
+    import api.router_settings as _self
+    mod_val = getattr(_self, "SETTINGS_JSON", None)
+    if mod_val is not None and mod_val != getattr(core.config, "SETTINGS_JSON", None):
+        return Path(mod_val)
+    getter = getattr(core.config, "get_settings_path", None)
+    if callable(getter):
+        return getter()
+    return Path(mod_val) if mod_val else core.config.BASE_DIR / "reader_settings.json"
 
 class SettingsRequest(BaseModel):
     font_size: int | None = None
@@ -25,19 +36,20 @@ class SettingsRequest(BaseModel):
 
 @router.get("/settings")
 def get_settings():
-    data = load_json(SETTINGS_JSON)
+    data = load_json(_settings_file())
     return ReaderSettings(**data).model_dump()
 
 
 @router.post("/settings")
 def post_settings(req: SettingsRequest):
-    cur = load_json(SETTINGS_JSON)
+    s_file = _settings_file()
+    cur = load_json(s_file)
     merged = ReaderSettings(**cur)
     for field in ["font_size", "line_spacing", "paragraph_indent", "page_margin", "read_width", "theme", "show_original"]:
         val = getattr(req, field)
         if val is not None:
             setattr(merged, field, val)
-    safe_save_json(SETTINGS_JSON, merged.model_dump())
+    safe_save_json(s_file, merged.model_dump())
     return merged.model_dump()
 
 
@@ -45,8 +57,9 @@ def post_settings(req: SettingsRequest):
 def post_theme(theme: str = "light"):
     if theme not in ("light", "dark"):
         theme = "light"
-    cur = load_json(SETTINGS_JSON)
+    s_file = _settings_file()
+    cur = load_json(s_file)
     merged = ReaderSettings(**cur)
     merged.theme = theme
-    safe_save_json(SETTINGS_JSON, merged.model_dump())
+    safe_save_json(s_file, merged.model_dump())
     return {"theme": theme}

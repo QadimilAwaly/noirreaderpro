@@ -1,7 +1,7 @@
 {
-  "library_root": [ 
-    "E:\\Novel_Library",
-    "E:\\Resilio Sync\\novel_translator\\translated_novels"
-]
-
+  "host": "127.0.0.1",
+  "port": 3030,
+  "library_roots": [
+    "./Novel_Library"
+  ]
 }

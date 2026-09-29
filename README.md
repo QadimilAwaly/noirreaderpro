@@ -48,17 +48,36 @@ Sesuaikan `library_root` di `config.json` (mis. `/sdcard/Download/Novel_Library`
 
 ## Konfigurasi Cepat
 
-Edit `config.json` untuk menetapkan direktori koleksi:
+### 1. File `config.json`
+Edit `config.json` untuk menetapkan host, port, dan direktori koleksi novel:
 
 ```json
 {
+  "host": "127.0.0.1",
+  "port": 3030,
   "library_roots": [
-    "/sdcard/Download/Novel_Library"
+    "./Novel_Library"
   ]
 }
 ```
 
-Field `global_storage_path` juga dikenali, selaras dengan struktur translator.
+- Path mendukung format relatif (mis. `./Novel_Library`), ekspansi `~` (home user), dan environment variable (mis. `$HOME/Novels`).
+- Field `library_root` dan `global_storage_path` juga tetap didukung untuk kompatibilitas.
+
+### 2. Opsi Command-Line (CLI)
+Anda dapat menentukan host dan port saat menjalankan server:
+```bash
+python main.py --host 0.0.0.0 --port 8080
+python app_desktop.py --host 127.0.0.1 --port 3030
+```
+
+### 3. Environment Variables
+Konfigurasi juga dapat dikendalikan sepenuhnya melalui environment variables:
+- `NOIR_HOST` atau `HOST` — Host/IP server bind (default: `127.0.0.1`).
+- `NOIR_PORT` atau `PORT` — Port server (default: `3030`).
+- `NOIR_LIBRARY_ROOTS` atau `NOIR_LIBRARY_ROOT` — Path direktori pustaka novel.
+- `NOIR_DATA_DIR` — Direktori penyimpanan data & konfigurasi runtime.
+- `NOIR_CONFIG_FILE` — Lokasi kustom file `config.json`.
 
 ---
 
