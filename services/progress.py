@@ -7,11 +7,11 @@ Auto-bookmark: tiap chapter yang dibuka otomatis tercatat (tanpa duplikat index)
 from __future__ import annotations
 
 import json
+import os
 import re
-import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
-
 from core.storage import load_json, safe_save_json
 from models.settings import Bookmark, Progress
 
@@ -44,8 +44,11 @@ def load_progress(novel_folder: str) -> Progress:
 
     cached = _progress_cache.get(path_key)
     if cached is not None and cached[0] == mtime:
-        return cached[1].model_copy(deep=True)
-
+        c_prog = cached[1]
+        return Progress(
+            current_chapter_index=c_prog.current_chapter_index,
+            bookmarks=list(c_prog.bookmarks),
+        )
     data = load_json(path)
     try:
         prog = Progress(
@@ -54,7 +57,11 @@ def load_progress(novel_folder: str) -> Progress:
         )
         # pastikan urut by chapter_index untuk tampilan
         prog.bookmarks.sort(key=lambda b: b.chapter_index)
-        _progress_cache[path_key] = (mtime, prog.model_copy(deep=True), prog.model_dump())
+        cached_prog = Progress(
+            current_chapter_index=prog.current_chapter_index,
+            bookmarks=list(prog.bookmarks),
+        )
+        _progress_cache[path_key] = (mtime, cached_prog, prog.model_dump())
         return prog
     except (ValueError, TypeError):
         return Progress()
@@ -76,10 +83,14 @@ def save_progress(novel_folder: str, progress: Progress) -> None:
         mtime = path.stat().st_mtime_ns
     except OSError:
         mtime = 0
-    _progress_cache[path_key] = (mtime, progress.model_copy(deep=True), payload)
+    cached_prog = Progress(
+        current_chapter_index=progress.current_chapter_index,
+        bookmarks=list(progress.bookmarks),
+    )
+    _progress_cache[path_key] = (mtime, cached_prog, payload)
 def add_bookmark_raw(prog: Progress, chapter_index: int, label: str = "") -> Progress:
     bm = Bookmark(
-        id=f"bm_{uuid.uuid4().hex[:10]}",
+        id=f"bm_{os.urandom(5).hex()}",
         chapter_index=chapter_index,
         label=label,
         created_at=_now(),
@@ -119,5 +130,4 @@ def dedupe_bookmarks(prog: Progress) -> Progress:
 
 
 def _now() -> str:
-    from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat()
