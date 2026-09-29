@@ -108,19 +108,16 @@ def _scan_legacy(root: str) -> List[NovelInfo]:
     root_path = Path(root)
     try:
         root_mtime = root_path.stat().st_mtime_ns
+        entries = [e for e in root_path.iterdir() if e.is_dir()]
+        entries.sort(key=lambda e: natural_sort_key(e.name))
+        sig = (root_mtime, tuple(e.name for e in entries))
     except OSError:
         return []
 
     root_key = str(root_path.resolve())
     cached = _legacy_catalog_cache.get(root_key)
-    if cached is not None and cached[0] == root_mtime:
+    if cached is not None and cached[0] == sig:
         return list(cached[1])
-
-    try:
-        entries = [e for e in root_path.iterdir() if e.is_dir()]
-        entries.sort(key=lambda e: natural_sort_key(e.name))
-    except OSError:
-        return []
 
     out: List[NovelInfo] = []
     for d in entries:
@@ -136,7 +133,7 @@ def _scan_legacy(root: str) -> List[NovelInfo]:
             has_original=has_orig,
         ))
     out.sort(key=lambda x: natural_sort_key(x.judul))
-    _legacy_catalog_cache[root_key] = (root_mtime, out)
+    _legacy_catalog_cache[root_key] = (sig, out)
     return list(out)
 
 
@@ -252,22 +249,19 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
 
     try:
         folder_mtime = folder.stat().st_mtime_ns
-    except OSError:
-        return []
-
-    cache_key = str(folder.resolve())
-    cached = _chapter_list_cache.get(cache_key)
-    if cached is not None and cached[0] == folder_mtime:
-        return list(cached[1])
-
-    try:
         files = sorted(
             [p for p in folder.iterdir()
              if p.suffix.lower() in (".txt", ".md", ".epub") and p.is_file()],
             key=lambda p: natural_sort_key(p.name),
         )
+        sig = (folder_mtime, tuple(p.name for p in files))
     except OSError:
         return []
+
+    cache_key = str(folder.resolve())
+    cached = _chapter_list_cache.get(cache_key)
+    if cached is not None and cached[0] == sig:
+        return list(cached[1])
     items: List[ChapterInfo] = []
     idx_counter = 0
     for p in files:
@@ -307,7 +301,7 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
     items.sort(key=lambda c: natural_sort_key(c.sort_key))
     for i, c in enumerate(items):
         c.index = i
-    _chapter_list_cache[cache_key] = (folder_mtime, items)
+    _chapter_list_cache[cache_key] = (sig, items)
     return list(items)
 
 def _pretty_title(stem: str) -> str:

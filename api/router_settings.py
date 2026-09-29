@@ -23,6 +23,13 @@ def _settings_file() -> Path:
     if callable(getter):
         return getter()
     return Path(mod_val) if mod_val else core.config.BASE_DIR / "reader_settings.json"
+_settings_cache: tuple | None = None
+
+
+def clear_settings_cache() -> None:
+    global _settings_cache
+    _settings_cache = None
+
 
 class SettingsRequest(BaseModel):
     font_size: int | None = None
@@ -36,9 +43,21 @@ class SettingsRequest(BaseModel):
 
 @router.get("/settings")
 def get_settings():
-    data = load_json(_settings_file())
-    return ReaderSettings(**data).model_dump()
+    global _settings_cache
+    s_file = _settings_file()
+    path_key = str(s_file)
+    try:
+        mtime = s_file.stat().st_mtime_ns
+    except (FileNotFoundError, OSError):
+        mtime = 0
 
+    if _settings_cache is not None and _settings_cache[0] == mtime and _settings_cache[1] == path_key:
+        return dict(_settings_cache[2])
+
+    data = load_json(s_file)
+    res = ReaderSettings(**data).model_dump()
+    _settings_cache = (mtime, path_key, res)
+    return res
 
 @router.post("/settings")
 def post_settings(req: SettingsRequest):
@@ -49,9 +68,15 @@ def post_settings(req: SettingsRequest):
         val = getattr(req, field)
         if val is not None:
             setattr(merged, field, val)
-    safe_save_json(s_file, merged.model_dump())
-    return merged.model_dump()
-
+    dumped = merged.model_dump()
+    safe_save_json(s_file, dumped)
+    try:
+        mtime = s_file.stat().st_mtime_ns
+    except (FileNotFoundError, OSError):
+        mtime = 0
+    global _settings_cache
+    _settings_cache = (mtime, str(s_file), dumped)
+    return dumped
 
 @router.post("/theme")
 def post_theme(theme: str = "light"):
@@ -61,5 +86,12 @@ def post_theme(theme: str = "light"):
     cur = load_json(s_file)
     merged = ReaderSettings(**cur)
     merged.theme = theme
-    safe_save_json(s_file, merged.model_dump())
+    dumped = merged.model_dump()
+    safe_save_json(s_file, dumped)
+    try:
+        mtime = s_file.stat().st_mtime_ns
+    except (FileNotFoundError, OSError):
+        mtime = 0
+    global _settings_cache
+    _settings_cache = (mtime, str(s_file), dumped)
     return {"theme": theme}
