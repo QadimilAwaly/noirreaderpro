@@ -71,14 +71,12 @@ def _get_from_indexed(root: str, novel_id: str, chapter_index: int):
     if not root:
         return None
     idx_path = Path(root) / "library_index.json"
-    if not idx_path.exists():
-        return None
     try:
         mtime = idx_path.stat().st_mtime_ns
-    except OSError:
+    except (FileNotFoundError, OSError):
         return None
 
-    cache_key = str(idx_path.resolve())
+    cache_key = str(idx_path)
     cached = _indexed_reader_cache.get(cache_key)
 
     if cached is not None and cached[0] == mtime:
@@ -114,10 +112,16 @@ def _get_from_indexed(root: str, novel_id: str, chapter_index: int):
         return None
 
     c = chaps[chapter_index]
-    trans = format_plain_markdown(c.get("teks_terjemahan", "") or "")
+    if "_cached_parsed" in c:
+        return c["_cached_parsed"]
+    raw_trans = c.get("teks_terjemahan", "") or c.get("translation", "") or ""
+    trans = format_plain_markdown(raw_trans)
     orig_raw = (c.get("teks_asli") or "").strip()
-    orig = format_plain_markdown(c.get("teks_asli", "")) if orig_raw else None
-    return trans, orig, c.get("judul_chapter", f"Chapter {c.get('nomor_chapter', chapter_index+1)}")
+    orig = format_plain_markdown(orig_raw) if orig_raw else None
+    title = c.get("judul_chapter", f"Chapter {c.get('nomor_chapter', chapter_index+1)}")
+    parsed = (trans, orig, title)
+    c["_cached_parsed"] = parsed
+    return parsed
 
 def get_chapter_content(
     root: str,
@@ -139,21 +143,18 @@ def get_chapter_content(
     try:
         if source == "indexed":
             idx_p = Path(root) / "library_index.json"
-            if idx_p.exists():
-                mtime = idx_p.stat().st_mtime_ns
-                cache_key = ("indexed", str(idx_p.resolve()), novel_id, chapter.index)
+            mtime = idx_p.stat().st_mtime_ns
+            cache_key = ("indexed", str(idx_p), novel_id, chapter.index)
         elif source == "epub":
             epub_name, _, epub_idx = ref.partition("#")
             ep_p = Path(novel_folder) / epub_name
-            if ep_p.exists():
-                mtime = ep_p.stat().st_mtime_ns
-                cache_key = ("epub", str(ep_p.resolve()), int(epub_idx or 0))
+            mtime = ep_p.stat().st_mtime_ns
+            cache_key = ("epub", str(ep_p), int(epub_idx or 0))
         else:  # md / txt
             ch_p = Path(novel_folder) / ref
-            if ch_p.exists():
-                mtime = ch_p.stat().st_mtime_ns
-                cache_key = (source, str(ch_p.resolve()))
-    except OSError:
+            mtime = ch_p.stat().st_mtime_ns
+            cache_key = (source, str(ch_p))
+    except (FileNotFoundError, OSError):
         cache_key = None
 
     if cache_key is not None:
