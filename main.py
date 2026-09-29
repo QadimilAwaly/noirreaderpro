@@ -22,7 +22,7 @@ from api.router_chapters import router as chapters_router
 from api.router_progress import router as progress_router
 from api.router_settings import router as settings_router
 
-app = FastAPI(title="Noir Reader Pro", version="1.0.0")
+app = FastAPI(title="Noir Reader Pro", version="1.1.0")
 
 
 class CacheControlASGIMiddleware:

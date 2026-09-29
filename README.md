@@ -154,4 +154,4 @@ Laporan masalah, permintaan fitur, atau kontribusi kode diterima melalui reposit
 
 ---
 
-*Noir Reader Pro v1.0.0 — Dibangun untuk pembaca yang menghargai privasi, performa, dan estetika minimalis.*
+*Noir Reader Pro v1.1.0 — Dibangun untuk pembaca yang menghargai privasi, performa, dan estetika minimalis.*
