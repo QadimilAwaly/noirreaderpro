@@ -16,11 +16,15 @@ function setupSearchListeners() {
   const elNovelSearch = document.getElementById("novel-search");
   const elClearNovelSearch = document.getElementById("btn-clear-novel-search");
 
+  let searchTimer = null;
   if (elNovelSearch && !elNovelSearch._searchWired) {
     elNovelSearch._searchWired = true;
     elNovelSearch.addEventListener("input", (e) => {
-      state.novelFilter = e.target.value.trim().toLowerCase();
-      renderNovels();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.novelFilter = e.target.value.trim().toLowerCase();
+        renderNovels();
+      }, 100);
     });
   }
 

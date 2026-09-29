@@ -34,10 +34,14 @@ if (elChkOriginal) {
   };
 }
 
+let chapterSearchDebounce = null;
 if (elSearch) {
   elSearch.oninput = () => {
-    state.chapterFilter = elSearch.value.trim().toLowerCase();
-    renderChapterCards();
+    clearTimeout(chapterSearchDebounce);
+    chapterSearchDebounce = setTimeout(() => {
+      state.chapterFilter = elSearch.value.trim().toLowerCase();
+      renderChapterCards();
+    }, 100);
   };
 }
 
@@ -171,6 +175,60 @@ export function renderChapterCards() {
     activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 }
+const _chapterCache = new Map();
+const MAX_CACHED_CHAPTERS = 25;
+
+function getCachedChapter(novelId, ref) {
+  return _chapterCache.get(`${novelId}:${ref}`);
+}
+
+function setCachedChapter(novelId, ref, data) {
+  const key = `${novelId}:${ref}`;
+  if (_chapterCache.size >= MAX_CACHED_CHAPTERS) {
+    const oldestKey = _chapterCache.keys().next().value;
+    _chapterCache.delete(oldestKey);
+  }
+  _chapterCache.set(key, data);
+}
+
+function prefetchNextChapter(currentChapter) {
+  if (!currentChapter) return;
+  const nextCh = state.chapters[currentChapter.index + 1];
+  if (!nextCh) return;
+  const novelId = nextCh.novel_id || state.activeNovelId;
+  const cacheKey = `${novelId}:${nextCh.ref}`;
+  if (_chapterCache.has(cacheKey)) return;
+
+  const idleRunner = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
+  idleRunner(async () => {
+    try {
+      const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(nextCh.ref)}`);
+      setCachedChapter(novelId, nextCh.ref, data);
+    } catch {}
+  });
+}
+
+export function updateActiveChapterCard() {
+  if (!elChapterList) return;
+  const prevActive = elChapterList.querySelector(".chap-card.active");
+  if (prevActive) {
+    prevActive.classList.remove("active");
+  }
+  const currentCh = state.chapters.find(c => c.ref === state.activeChapterRef);
+  if (currentCh) {
+    const cardEl = document.getElementById(`chap-card-${currentCh.index}`);
+    if (cardEl) {
+      cardEl.classList.add("active");
+      const readIndicator = cardEl.querySelector(".chap-read");
+      if (readIndicator && state.readSet.has(currentCh.index)) {
+        readIndicator.className = "chap-read";
+        readIndicator.textContent = "✓";
+        readIndicator.title = "Sudah dibaca";
+      }
+      cardEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+}
 
 export async function openChapter(ref, isResume = false) {
   const ch = state.chapters.find(c => c.ref === ref);
@@ -182,9 +240,24 @@ export async function openChapter(ref, isResume = false) {
   }
 
   state.activeChapterRef = ref;
-  renderChapterCards();
-  setStatus("Memuat…");
+  if (elChapterList && elChapterList.children.length === state.chapters.length && !state.chapterFilter) {
+    updateActiveChapterCard();
+  } else {
+    renderChapterCards();
+  }
 
+  // Periksa cache chapter di client untuk transisi instan
+  const cached = getCachedChapter(novelId, ref);
+  if (cached) {
+    state.currentChapterData = cached;
+    renderContent(cached);
+    applyChapterUI(cached);
+    recordReadStatus(ch);
+    prefetchNextChapter(ch);
+    return;
+  }
+
+  setStatus("Memuat…");
   if (elContent) {
     elContent.innerHTML = `
       <div class="reader-loading">
@@ -196,46 +269,11 @@ export async function openChapter(ref, isResume = false) {
   try {
     const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(ref)}`);
     state.currentChapterData = data;
-
+    setCachedChapter(novelId, ref, data);
     renderContent(data);
-
-    if (elPos) elPos.textContent = `${data.index + 1} / ${data.total}`;
-    if (elToolbar) elToolbar.hidden = false;
-
-    // Boundary button states (disable at first/last chapter)
-    if (elPrev) {
-      elPrev.disabled = data.index <= 0;
-      elPrev.setAttribute("aria-disabled", String(data.index <= 0));
-    }
-    if (elNext) {
-      elNext.disabled = data.index >= data.total - 1;
-      elNext.setAttribute("aria-disabled", String(data.index >= data.total - 1));
-    }
-
-    if (elOrigWrap) elOrigWrap.style.display = data.original ? "" : "none";
-    if (elChkOriginal) {
-      elChkOriginal.disabled = !data.original;
-      if (data.original) elChkOriginal.checked = state.showOriginal;
-    }
-
-    if (elContent) elContent.scrollTop = 0;
-    setStatus("Siap");
-
-    // Update status baca & auto-bookmark secara in-memory (tanpa request tambahan)
-    if (!state.readSet.has(ch.index)) {
-      state.readSet.add(ch.index);
-      const exists = state.bookmarks.some(b => b.chapter_index === ch.index);
-      if (!exists) {
-        state.bookmarks.push({
-          id: `bm_auto_${ch.index}`,
-          chapter_index: ch.index,
-          label: ch.title,
-          created_at: new Date().toISOString(),
-        });
-      }
-      renderChapterCards();
-      renderBookmarks();
-    }
+    applyChapterUI(data);
+    recordReadStatus(ch);
+    prefetchNextChapter(ch);
   } catch (e) {
     if (elContent) {
       elContent.innerHTML = `
@@ -246,6 +284,47 @@ export async function openChapter(ref, isResume = false) {
     }
     showToast(e.message, "error");
     setStatus("Gagal");
+  }
+}
+
+function applyChapterUI(data) {
+  if (elPos) elPos.textContent = `${data.index + 1} / ${data.total}`;
+  if (elToolbar) elToolbar.hidden = false;
+
+  // Boundary button states (disable at first/last chapter)
+  if (elPrev) {
+    elPrev.disabled = data.index <= 0;
+    elPrev.setAttribute("aria-disabled", String(data.index <= 0));
+  }
+  if (elNext) {
+    elNext.disabled = data.index >= data.total - 1;
+    elNext.setAttribute("aria-disabled", String(data.index >= data.total - 1));
+  }
+
+  if (elOrigWrap) elOrigWrap.style.display = data.original ? "" : "none";
+  if (elChkOriginal) {
+    elChkOriginal.disabled = !data.original;
+    if (data.original) elChkOriginal.checked = state.showOriginal;
+  }
+
+  if (elContent) elContent.scrollTop = 0;
+  setStatus("Siap");
+}
+
+function recordReadStatus(ch) {
+  if (!state.readSet.has(ch.index)) {
+    state.readSet.add(ch.index);
+    const exists = state.bookmarks.some(b => b.chapter_index === ch.index);
+    if (!exists) {
+      state.bookmarks.push({
+        id: `bm_auto_${ch.index}`,
+        chapter_index: ch.index,
+        label: ch.title,
+        created_at: new Date().toISOString(),
+      });
+    }
+    updateActiveChapterCard();
+    renderBookmarks();
   }
 }
 
