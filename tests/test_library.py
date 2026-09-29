@@ -145,3 +145,19 @@ def test_build_chapter_list_caching(tmp_path: Path):
     chaps3 = lib.build_chapter_list(str(folder))
     assert len(chaps3) == 2
     assert chaps3[1].title == "Chapter 02"
+
+
+def test_natural_sort_key_mixed_types(tmp_path: Path):
+    lib.clear_library_cache()
+    root = tmp_path / "mixed_lib"
+    root.mkdir()
+    for folder_name in ["100_Novel", "My Novel", "2_Novel", "Alpha Novel"]:
+        f = root / folder_name
+        f.mkdir()
+        (f / "Chapter_01.txt").write_text("Konten", encoding="utf-8")
+
+    novels = lib.load_library(str(root))
+    assert len(novels) == 4
+    titles = [n.judul for n in novels]
+    # Numeric names sort first naturally: 2_Novel before 100_Novel, followed by Alpha Novel, My Novel
+    assert titles == ["2_Novel", "100_Novel", "Alpha Novel", "My Novel"]

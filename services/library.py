@@ -47,11 +47,21 @@ _NUM_SPLIT_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)")
 
 @lru_cache(maxsize=4096)
 def natural_sort_key(s: str) -> tuple:
-    return tuple(
-        float(t) if t.replace(".", "", 1).isdigit() else t.lower()
-        for t in _NUM_SPLIT_RE.split(s)
-        if t
-    )
+    if not s:
+        return ()
+    s_str = str(s)
+    tokens = []
+    for t in _NUM_SPLIT_RE.split(s_str):
+        if not t:
+            continue
+        if t.replace(".", "", 1).isdigit():
+            try:
+                tokens.append((0, float(t)))
+                continue
+            except ValueError:
+                pass
+        tokens.append((1, t.lower()))
+    return tuple(tokens)
 
 def _try_indexed(root: str) -> List[NovelInfo] | None:
     idx_path = Path(root) / INDEX_FILENAME
