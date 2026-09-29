@@ -10,6 +10,7 @@ import json
 import os
 import re
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import List
 from core.storage import load_json, safe_save_json
@@ -25,22 +26,23 @@ def clear_progress_cache() -> None:
     _progress_cache.clear()
 
 
+_SAFE_NAME_RE = re.compile(r"[\\/:*?\"<>|]")
+
+
+@lru_cache(maxsize=512)
 def _progress_path(novel_folder: str) -> Path:
     name = Path(novel_folder).name
-    safe = re.sub(r"[\\/:*?\"<>|]", "", name).strip() or "novel"
+    safe = _SAFE_NAME_RE.sub("", name).strip() or "novel"
     return Path(novel_folder) / f"{_PREFIX}{safe}_progress.json"
 
 
 def load_progress(novel_folder: str) -> Progress:
     path = _progress_path(novel_folder)
-    path_key = str(path.resolve())
-    if not path.exists():
-        return Progress()
-
+    path_key = str(path)
     try:
         mtime = path.stat().st_mtime_ns
-    except OSError:
-        mtime = 0
+    except (FileNotFoundError, OSError):
+        return Progress()
 
     cached = _progress_cache.get(path_key)
     if cached is not None and cached[0] == mtime:
@@ -70,7 +72,7 @@ def load_progress(novel_folder: str) -> Progress:
 def save_progress(novel_folder: str, progress: Progress) -> None:
     progress.bookmarks.sort(key=lambda b: b.chapter_index)
     path = _progress_path(novel_folder)
-    path_key = str(path.resolve())
+    path_key = str(path)
     payload = progress.model_dump()
 
     cached = _progress_cache.get(path_key)

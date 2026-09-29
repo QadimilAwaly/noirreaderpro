@@ -28,7 +28,7 @@ def safe_save_json(filepath: str | Path, data: dict) -> None:
     parent = filepath.parent
     if not parent.exists():
         parent.mkdir(parents=True, exist_ok=True)
-    lock = _lock_for(str(filepath.resolve()))
+    lock = _lock_for(str(filepath))
     payload_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     tmp_path = filepath.with_suffix(filepath.suffix + f".tmp_{os.getpid()}")
     with lock:
@@ -48,7 +48,7 @@ def load_json(filepath: str | Path, default: dict | None = None) -> dict:
     filepath = Path(filepath)
     if not filepath.exists():
         return default if default is not None else {}
-    lock = _lock_for(str(filepath.resolve()))
+    lock = _lock_for(str(filepath))
     with lock:
         try:
             with filepath.open("r", encoding="utf-8") as f:
