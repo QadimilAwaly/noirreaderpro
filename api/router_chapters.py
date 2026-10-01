@@ -178,7 +178,11 @@ def get_chapters(novel_id: str = Query(...)):
 
 
 @router.get("/chapter")
-def get_chapter(novel_id: Optional[str] = Query(None), ref: str = Query(...)):
+def get_chapter(
+    novel_id: Optional[str] = Query(None),
+    ref: str = Query(...),
+    prefetch: bool = Query(False),
+):
     roots = get_library_roots()
 
     clean_nid = (novel_id or "").strip()
@@ -208,16 +212,23 @@ def get_chapter(novel_id: Optional[str] = Query(None), ref: str = Query(...)):
     content = reader_service.get_chapter_content(root or "", folder, clean_nid or "", target)
     content.total = len(chapters)
 
-    # auto-save progress & auto-bookmark
-    prog = prog_service.load_progress(folder)
-    prog.current_chapter_index = target.index
-    exists = any(b.chapter_index == target.index for b in prog.bookmarks)
-    if not exists:
-        prog = prog_service.add_bookmark_raw(prog, target.index, target.title or "")
-    else:
-        if target.title:
-            for b in prog.bookmarks:
-                if b.chapter_index == target.index and not b.label:
-                    b.label = target.title
-    prog_service.save_progress(folder, prog)
+    # auto-save progress & auto-bookmark (hanya saat chapter benar-benar dibuka, lewati jika request prefetch)
+    if not prefetch:
+        prog = prog_service.load_progress(folder)
+        changed = False
+        if prog.current_chapter_index != target.index:
+            prog.current_chapter_index = target.index
+            changed = True
+        exists = any(b.chapter_index == target.index for b in prog.bookmarks)
+        if not exists:
+            prog = prog_service.add_bookmark_raw(prog, target.index, target.title or "")
+            changed = True
+        else:
+            if target.title:
+                for b in prog.bookmarks:
+                    if b.chapter_index == target.index and not b.label:
+                        b.label = target.title
+                        changed = True
+        if changed:
+            prog_service.save_progress(folder, prog)
     return content.model_dump()

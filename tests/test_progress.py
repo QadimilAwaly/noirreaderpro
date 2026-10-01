@@ -25,3 +25,16 @@ def test_progress_persists_to_folder(tmp_path: Path):
     # file harus ada di dalam folder
     files = list(folder.iterdir())
     assert any(f.name.endswith("_progress.json") for f in files)
+
+
+def test_load_progress_fallback_to_last_bookmark(tmp_path: Path):
+    folder = tmp_path / "novel_bm"
+    folder.mkdir()
+    # Create progress file with current_chapter_index = 0 and bookmarks at chapter 0 and 2
+    p_file = folder / f".{folder.name}_progress.json"
+    p_file.write_text(
+        '{"current_chapter_index": 0, "bookmarks": [{"id": "b1", "chapter_index": 0}, {"id": "b2", "chapter_index": 2}]}',
+        encoding="utf-8",
+    )
+    loaded = prog.load_progress(str(folder))
+    assert loaded.current_chapter_index == 2

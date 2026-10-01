@@ -78,8 +78,13 @@ export async function loadChapters(novelId) {
     renderChapterCards();
     renderBookmarks();
 
-    const lastIdx = data.current_index || 0;
-    const last = state.chapters[lastIdx] || state.chapters[0];
+    // Resume chapter yang tepat: utamakan bookmark terakhir jika ada, fallback ke current_index
+    let lastIdx = data.current_index || 0;
+    if (state.bookmarks && state.bookmarks.length > 0) {
+      const sortedBm = [...state.bookmarks].sort((a, b) => a.chapter_index - b.chapter_index);
+      lastIdx = sortedBm[sortedBm.length - 1].chapter_index;
+    }
+    const last = state.chapters.find(c => c.index === lastIdx) || state.chapters[lastIdx] || state.chapters[0];
     if (last) {
       await openChapter(last.ref, true);
     } else {
@@ -202,7 +207,7 @@ function prefetchNextChapter(currentChapter) {
   const idleRunner = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
   idleRunner(async () => {
     try {
-      const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(nextCh.ref)}`);
+      const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(nextCh.ref)}&prefetch=1`);
       setCachedChapter(novelId, nextCh.ref, data);
     } catch {}
   });
@@ -253,6 +258,11 @@ export async function openChapter(ref, isResume = false) {
     renderContent(cached);
     applyChapterUI(cached);
     recordReadStatus(ch);
+    // Sinkronisasi status progres ke server saat membuka chapter dari cache
+    api.post(`/api/mark-read?novel_id=${encodeURIComponent(novelId)}`, {
+      chapter_index: ch.index,
+      label: ch.title || `Chapter ${ch.index + 1}`,
+    }).catch(() => {});
     prefetchNextChapter(ch);
     return;
   }

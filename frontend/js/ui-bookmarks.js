@@ -60,7 +60,7 @@ export function renderBookmarks() {
   }
 
   for (const bm of sorted) {
-    const ch = state.chapters[bm.chapter_index];
+    const ch = state.chapters.find(c => c.index === bm.chapter_index) || state.chapters[bm.chapter_index];
     const label = bm.label || (ch ? ch.title : `Chapter ${bm.chapter_index + 1}`);
     const isCurrent = ch && ch.ref === state.activeChapterRef;
 

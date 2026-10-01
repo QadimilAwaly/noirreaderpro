@@ -262,6 +262,14 @@ def test_chapter_get_auto_bookmarks_single_write(tmp_path: Path, monkeypatch):
     prog_data3 = client.get(f"/api/progress?novel_id={novel_id}").json()
     assert prog_data3["current_chapter_index"] == 0
     assert len(prog_data3["bookmarks"]) == 2
+    # Prefetching chapter 2 must NOT trigger disk write or alter progress/bookmarks
+    save_calls = 0
+    res_prefetch = client.get(f"/api/chapter?novel_id={novel_id}&ref=Chapter_02.txt&prefetch=1")
+    assert res_prefetch.status_code == 200
+    assert save_calls == 0
+    prog_data_prefetch = client.get(f"/api/progress?novel_id={novel_id}").json()
+    assert prog_data_prefetch["current_chapter_index"] == 0
+    assert len(prog_data_prefetch["bookmarks"]) == 2
 
 
 def test_novels_api_caching_and_invalidation(tmp_path: Path, monkeypatch):

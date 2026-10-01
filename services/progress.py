@@ -53,12 +53,15 @@ def load_progress(novel_folder: str) -> Progress:
         )
     data = load_json(path)
     try:
+        current_idx = int(data.get("current_chapter_index", 0))
+        bookmarks = [Bookmark(**b) for b in data.get("bookmarks", [])]
+        bookmarks.sort(key=lambda b: b.chapter_index)
+        if current_idx == 0 and bookmarks:
+            current_idx = bookmarks[-1].chapter_index
         prog = Progress(
-            current_chapter_index=int(data.get("current_chapter_index", 0)),
-            bookmarks=[Bookmark(**b) for b in data.get("bookmarks", [])],
+            current_chapter_index=current_idx,
+            bookmarks=bookmarks,
         )
-        # pastikan urut by chapter_index untuk tampilan
-        prog.bookmarks.sort(key=lambda b: b.chapter_index)
         cached_prog = Progress(
             current_chapter_index=prog.current_chapter_index,
             bookmarks=list(prog.bookmarks),
@@ -103,6 +106,7 @@ def add_bookmark_raw(prog: Progress, chapter_index: int, label: str = "") -> Pro
 
 def add_bookmark(novel_folder: str, chapter_index: int, label: str = "") -> Bookmark:
     prog = load_progress(novel_folder)
+    prog.current_chapter_index = chapter_index
     prog = add_bookmark_raw(prog, chapter_index, label)
     save_progress(novel_folder, prog)
     return prog.bookmarks[-1]
