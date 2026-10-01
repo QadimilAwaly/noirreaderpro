@@ -1,7 +1,13 @@
 # Changelog
 
-## 1.1.0 (2026-09-29)
+## 1.1.2 (2026-10-01)
 
+### Perbaikan Bug
+- **Eliminasi Auto-Advance saat Reopen/Reload:** Menghapus fungsi background prefetching spekulatif yang berpotensi memajukan posisi baca ke bab berikutnya.
+- **Preservasi Bab Aktif saat Resume:** Memastikan posisi baca terakhir (`current_chapter_index`) selalu dipertahankan secara akurat saat memuat ulang halaman atau membuka kembali aplikasi.
+- **Bypass Browser Static Asset Cache:** Menambahkan query string versi (`?v=1.1.2`) pada file JavaScript dan CSS di antarmuka web untuk mencegah peramban menggunakan kode usang dari cache.
+
+## 1.1.0 (2026-09-29)
 ### Fitur & Pengaturan Fleksibel
 - **Dukungan CLI & Environment Variables:** Opsi `--host` dan `-p`/`--port` pada `main.py` dan `app_desktop.py`, serta environment variables (`NOIR_HOST`, `NOIR_PORT`, `NOIR_LIBRARY_ROOTS`, `NOIR_DATA_DIR`, `NOIR_CONFIG_FILE`).
 - **Jalur Portabel & Cross-Platform:** Menggantikan path absolut hardcoded dengan resolusi portabel (`./Novel_Library`), ekspansi `~` (home user) dan environment variables ($VAR / %VAR%).

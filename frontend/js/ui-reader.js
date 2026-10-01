@@ -78,11 +78,16 @@ export async function loadChapters(novelId) {
     renderChapterCards();
     renderBookmarks();
 
-    // Resume chapter yang tepat: utamakan bookmark terakhir jika ada, fallback ke current_index
-    let lastIdx = data.current_index || 0;
-    if (state.bookmarks && state.bookmarks.length > 0) {
+    // Resume chapter yang tepat:
+    // 1. Gunakan current_index dari server jika valid
+    // 2. Jika current_index bernilai 0 tapi ada riwayat bookmark tersimpan, gunakan bookmark terakhir
+    let lastIdx = data.current_index ?? 0;
+    if (lastIdx === 0 && state.bookmarks && state.bookmarks.length > 0) {
       const sortedBm = [...state.bookmarks].sort((a, b) => a.chapter_index - b.chapter_index);
-      lastIdx = sortedBm[sortedBm.length - 1].chapter_index;
+      const highestBm = sortedBm[sortedBm.length - 1].chapter_index;
+      if (highestBm > 0) {
+        lastIdx = highestBm;
+      }
     }
     const last = state.chapters.find(c => c.index === lastIdx) || state.chapters[lastIdx] || state.chapters[0];
     if (last) {
@@ -196,22 +201,6 @@ function setCachedChapter(novelId, ref, data) {
   _chapterCache.set(key, data);
 }
 
-function prefetchNextChapter(currentChapter) {
-  if (!currentChapter) return;
-  const nextCh = state.chapters[currentChapter.index + 1];
-  if (!nextCh) return;
-  const novelId = nextCh.novel_id || state.activeNovelId;
-  const cacheKey = `${novelId}:${nextCh.ref}`;
-  if (_chapterCache.has(cacheKey)) return;
-
-  const idleRunner = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
-  idleRunner(async () => {
-    try {
-      const data = await api.get(`/api/chapter?novel_id=${encodeURIComponent(novelId)}&ref=${encodeURIComponent(nextCh.ref)}&prefetch=1`);
-      setCachedChapter(novelId, nextCh.ref, data);
-    } catch {}
-  });
-}
 
 export function updateActiveChapterCard() {
   if (!elChapterList) return;
@@ -263,7 +252,6 @@ export async function openChapter(ref, isResume = false) {
       chapter_index: ch.index,
       label: ch.title || `Chapter ${ch.index + 1}`,
     }).catch(() => {});
-    prefetchNextChapter(ch);
     return;
   }
 
@@ -283,7 +271,6 @@ export async function openChapter(ref, isResume = false) {
     renderContent(data);
     applyChapterUI(data);
     recordReadStatus(ch);
-    prefetchNextChapter(ch);
   } catch (e) {
     if (elContent) {
       elContent.innerHTML = `
