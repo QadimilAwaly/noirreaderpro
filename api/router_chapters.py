@@ -205,7 +205,7 @@ def get_chapter(
         raise HTTPException(status_code=404, detail="Novel atau chapter tidak ditemukan.")
 
     chapters = lib_service.build_chapter_list(folder, novel_id=clean_nid or "", root=root or "")
-    target = next((c for c in chapters if c.ref == ref or str(c.index) == ref), None)
+    target = lib_service.find_chapter_by_ref(chapters, ref)
     if not target:
         raise HTTPException(status_code=404, detail="Chapter tidak ditemukan.")
 
