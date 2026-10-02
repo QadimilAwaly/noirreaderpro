@@ -46,7 +46,7 @@ def list_novels():
     return {
         "library_roots": roots,
         "library_root": roots[0] if roots else "",
-        "novels": [n.model_dump() for n in novels],
+        "novels": [n.to_dict() for n in novels],
     }
 
 

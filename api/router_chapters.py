@@ -171,9 +171,9 @@ def get_chapters(novel_id: str = Query(...)):
     return {
         "novel_id": clean_nid,
         "novel_folder": folder,
-        "chapters": [c.model_dump() for c in chapters],
+        "chapters": [c.to_dict() for c in chapters],
         "current_index": prog.current_chapter_index,
-        "bookmarks": [b.model_dump() for b in prog.bookmarks],
+        "bookmarks": [b.to_dict() for b in prog.bookmarks],
     }
 
 
@@ -231,4 +231,4 @@ def get_chapter(
                         changed = True
         if changed:
             prog_service.save_progress(folder, prog)
-    return content.model_dump()
+    return content.to_dict()

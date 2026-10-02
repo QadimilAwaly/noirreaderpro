@@ -14,6 +14,8 @@ class NovelInfo(BaseModel):
     has_original: bool = False  # ada teks asli (indexed/.md)
     is_last_read: bool = False
 
+    def to_dict(self) -> dict:
+        return self.__dict__
 
 class ChapterInfo(BaseModel):
     # ref unik: untuk epub pakai f"{epub_name}#{idx}"
@@ -25,6 +27,8 @@ class ChapterInfo(BaseModel):
     has_original: bool = False
     index: int = 0       # urutan chapter ke-
 
+    def to_dict(self) -> dict:
+        return self.__dict__
 
 class ChapterContent(BaseModel):
     ref: str
@@ -34,3 +38,6 @@ class ChapterContent(BaseModel):
     index: int = 0
     total: int = 0
     source: str = "txt"
+
+    def to_dict(self) -> dict:
+        return self.__dict__

@@ -35,7 +35,15 @@ class Bookmark(BaseModel):
     label: str = ""
     created_at: str = ""
 
+    def to_dict(self) -> dict:
+        return self.__dict__
 
 class Progress(BaseModel):
     current_chapter_index: int = 0
     bookmarks: List[Bookmark] = Field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "current_chapter_index": self.current_chapter_index,
+            "bookmarks": [b.__dict__ for b in self.bookmarks],
+        }

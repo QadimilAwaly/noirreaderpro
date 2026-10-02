@@ -66,7 +66,7 @@ def load_progress(novel_folder: str) -> Progress:
             current_chapter_index=prog.current_chapter_index,
             bookmarks=list(prog.bookmarks),
         )
-        _progress_cache[path_key] = (mtime, cached_prog, prog.model_dump())
+        _progress_cache[path_key] = (mtime, cached_prog, prog.to_dict())
         return prog
     except (ValueError, TypeError):
         return Progress()
@@ -91,7 +91,7 @@ def save_progress(novel_folder: str, progress: Progress) -> None:
             # Identik di memori, lewati model_dump & disk write (hemat daya baterai & siklus CPU)
             return
 
-    payload = progress.model_dump()
+    payload = progress.to_dict()
     if cached is not None and cached[2] == payload:
         return
     safe_save_json(path, payload)
