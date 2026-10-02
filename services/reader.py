@@ -86,39 +86,45 @@ def format_plain_markdown(text: str) -> str:
     if not text:
         return ""
 
-    # 1. Unescape entitas HTML yang ada (mencegah double-escaping seperti &amp;mdash;)
-    text = html.unescape(text)
+    # 1. Unescape entitas HTML hanya jika ada tanda '&' (mempercepat bab biasa tanpa entitas)
+    if "&" in text:
+        text = html.unescape(text)
 
-    # 2. Lindungi tag inline yang aman sebelum escaping
+    # 2. Lindungi tag inline yang aman sebelum escaping (hanya jika ada tanda '<')
     placeholders = []
-
-    def _save_tag(m):
-        slash = m.group(1) or ""
-        raw_tag = m.group(2).lower()
-        if raw_tag in _ALLOWED_TAG_NAMES:
-            tag_name = _TAG_NORMALIZATION.get(raw_tag, raw_tag)
-            idx = len(placeholders)
-            if tag_name == "br":
-                placeholders.append("<br />")
-            else:
-                placeholders.append(f"<{slash}{tag_name}>")
-            return f"\x00TAG{idx}\x00"
-        return m.group(0)
-
-    tokenized = _RE_TAG.sub(_save_tag, text)
+    if "<" in text:
+        def _save_tag(m):
+            slash = m.group(1) or ""
+            raw_tag = m.group(2).lower()
+            if raw_tag in _ALLOWED_TAG_NAMES:
+                tag_name = _TAG_NORMALIZATION.get(raw_tag, raw_tag)
+                idx = len(placeholders)
+                if tag_name == "br":
+                    placeholders.append("<br />")
+                else:
+                    placeholders.append(f"<{slash}{tag_name}>")
+                return f"\x00TAG{idx}\x00"
+            return m.group(0)
+        text = _RE_TAG.sub(_save_tag, text)
 
     # 3. Escape semua karakter & tag selain yang sudah dilindungi
-    safe = html.escape(tokenized)
+    safe = html.escape(text)
 
-    # 4. Parsing sintaks Markdown inline
-    safe = _RE_SUB.sub(r"<sub>\1</sub>", safe)
-    safe = _RE_SUP.sub(r"<sup>\1</sup>", safe)
-    safe = _RE_STRIKE.sub(r"<del>\1</del>", safe)
-    safe = _RE_MARK.sub(r"<mark>\1</mark>", safe)
-    safe = _RE_CODE.sub(r"<code>\1</code>", safe)
-    safe = _RE_RUBY.sub(r"<ruby>\1<rt>\2</rt></ruby>", safe)
-    safe = _RE_BOLD.sub(r"<strong>\1</strong>", safe)
-    safe = _RE_ITALIC.sub(r"<em>\1</em>", safe)
+    # 4. Parsing sintaks Markdown inline (short-circuit: lewati regex jika karakter pemicu tidak ada)
+    if "~" in safe:
+        safe = _RE_SUB.sub(r"<sub>\1</sub>", safe)
+        safe = _RE_STRIKE.sub(r"<del>\1</del>", safe)
+    if "^" in safe:
+        safe = _RE_SUP.sub(r"<sup>\1</sup>", safe)
+    if "==" in safe:
+        safe = _RE_MARK.sub(r"<mark>\1</mark>", safe)
+    if "`" in safe:
+        safe = _RE_CODE.sub(r"<code>\1</code>", safe)
+    if "《" in safe:
+        safe = _RE_RUBY.sub(r"<ruby>\1<rt>\2</rt></ruby>", safe)
+    if "*" in safe:
+        safe = _RE_BOLD.sub(r"<strong>\1</strong>", safe)
+        safe = _RE_ITALIC.sub(r"<em>\1</em>", safe)
 
     # 5. Kembalikan tag inline yang dilindungi (single-pass regex replacement)
     if placeholders:
