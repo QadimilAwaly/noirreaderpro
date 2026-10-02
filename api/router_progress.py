@@ -55,20 +55,26 @@ def mark_read(novel_id: str = Query(...), req: BookmarkRequest = None):
     if not req:
         raise HTTPException(status_code=400, detail="Body kosong.")
     prog = prog_service.load_progress(folder)
-    prog.current_chapter_index = req.chapter_index
+    changed = False
+    if prog.current_chapter_index != req.chapter_index:
+        prog.current_chapter_index = req.chapter_index
+        changed = True
 
     # auto-tambah bookmark kalau chapter ini belum ada
     exists = any(b.chapter_index == req.chapter_index for b in prog.bookmarks)
     if not exists:
         from services.progress import add_bookmark_raw
         prog = add_bookmark_raw(prog, req.chapter_index, req.label or "")
+        changed = True
     else:
         # update label kalau diberi
         if req.label:
             for b in prog.bookmarks:
                 if b.chapter_index == req.chapter_index and not b.label:
                     b.label = req.label
-    prog_service.save_progress(folder, prog)
+                    changed = True
+    if changed:
+        prog_service.save_progress(folder, prog)
     return prog.model_dump()
 
 

@@ -76,13 +76,24 @@ def save_progress(novel_folder: str, progress: Progress) -> None:
     progress.bookmarks.sort(key=lambda b: b.chapter_index)
     path = _progress_path(novel_folder)
     path_key = str(path)
-    payload = progress.model_dump()
 
     cached = _progress_cache.get(path_key)
-    if cached is not None and cached[2] == payload and path.exists():
-        # Lewati penulisan disk jika data identik (hemat siklus flash & daya baterai)
-        return
+    if cached is not None:
+        c_prog = cached[1]
+        if (
+            c_prog.current_chapter_index == progress.current_chapter_index
+            and len(c_prog.bookmarks) == len(progress.bookmarks)
+            and all(
+                b1.chapter_index == b2.chapter_index and b1.id == b2.id and b1.label == b2.label
+                for b1, b2 in zip(c_prog.bookmarks, progress.bookmarks)
+            )
+        ):
+            # Identik di memori, lewati model_dump & disk write (hemat daya baterai & siklus CPU)
+            return
 
+    payload = progress.model_dump()
+    if cached is not None and cached[2] == payload:
+        return
     safe_save_json(path, payload)
     try:
         mtime = path.stat().st_mtime_ns

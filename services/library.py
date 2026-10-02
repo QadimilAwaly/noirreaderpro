@@ -268,7 +268,7 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
     except OSError:
         return []
 
-    cache_key = str(folder.resolve())
+    cache_key = str(folder)
     cached = _chapter_list_cache.get(cache_key)
     if cached is not None and cached[0] == sig:
         return list(cached[1])
@@ -317,3 +317,19 @@ def build_chapter_list(novel_folder: str, novel_id: str = "", root: str = "") ->
 def _pretty_title(stem: str) -> str:
     s = re.sub(r"[_\-]+", " ", stem).strip()
     return s
+
+
+def find_chapter_by_ref(chapters: List[ChapterInfo], ref: str) -> Optional[ChapterInfo]:
+    """Cari chapter secara efisien berdasarkan ref string atau index."""
+    if not chapters:
+        return None
+    if ref.isdigit():
+        idx = int(ref)
+        if 0 <= idx < len(chapters):
+            c = chapters[idx]
+            if c.ref == ref or str(c.index) == ref:
+                return c
+    for c in chapters:
+        if c.ref == ref or str(c.index) == ref:
+            return c
+    return None
