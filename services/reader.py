@@ -131,8 +131,12 @@ def format_plain_markdown(text: str) -> str:
         safe = _RE_PLACEHOLDER.sub(lambda m: placeholders[int(m.group(1))], safe)
 
     # 6. Susun paragraf
-    lines = safe.split("\n")
-    return "\n".join(f'<p class="novel-paragraph">{line.strip()}</p>' for line in lines if line.strip())
+    out = []
+    for line in safe.split("\n"):
+        s = line.strip()
+        if s:
+            out.append(f'<p class="novel-paragraph">{s}</p>')
+    return "\n".join(out)
 
 _MD_DIVIDER = re.compile(r"^---+\s*$", re.MULTILINE)
 _MD_TRANS_HEADER = re.compile(r"##\s*Hasil\s*Terjemahan", re.IGNORECASE)
