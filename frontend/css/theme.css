@@ -51,7 +51,7 @@ html, body {
 
 body {
   margin: 0;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Inter", "Segoe UI", Georgia, serif;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Inter", "Segoe UI", Georgia, -apple-system, BlinkMacSystemFont, "Noto Serif", "Noto Sans", system-ui, serif, sans-serif;
   background: var(--bg);
   color: var(--fg);
   font-size: 15px;

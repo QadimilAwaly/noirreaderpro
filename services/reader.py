@@ -27,20 +27,106 @@ def clear_reader_cache() -> None:
     _chapter_content_cache.clear()
 
 
+_ALLOWED_TAG_NAMES = {
+    "sub", "sup", "strong", "b", "em", "i", "u", "s", "del", "strike",
+    "mark", "small", "ruby", "rt", "rp", "code", "br"
+}
+
+_TAG_NORMALIZATION = {
+    "b": "strong",
+    "i": "em",
+    "s": "del",
+    "strike": "del",
+}
+
+_RE_TAG = re.compile(r"<\s*(/)?\s*([a-zA-Z0-9]+)(?:\s+[^>]*)?>")
 _RE_BOLD = re.compile(r"\*\*(.+?)\*\*")
-_RE_ITALIC = re.compile(r"\*(.+?)\*")
+_RE_ITALIC = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
+_RE_STRIKE = re.compile(r"~~(.+?)~~")
+_RE_SUB = re.compile(r"(?<!~)\~([a-zA-Z0-9\+\-\=\.,_]+)\~(?!~)")
+_RE_SUP = re.compile(r"(?<!\^)\^([a-zA-Z0-9\+\-\=\.,_]+)\^(?!\^)")
+_RE_RUBY = re.compile(r"[\|｜]([^\s《\|\n\r]+)《([^》\r\n]+)》")
+_RE_MARK = re.compile(r"==(.+?)==")
+_RE_CODE = re.compile(r"`([^`\n]+)`")
+_RE_PLACEHOLDER = re.compile(r"\x00TAG(\d+)\x00")
+
+
+def read_chapter_file(p: Path) -> str:
+    """Baca isi file teks novel dengan penanganan encoding cerdas (UTF-8, UTF-8-BOM, CP1252/ANSI, UTF-16)."""
+    try:
+        raw_bytes = p.read_bytes()
+    except OSError:
+        return ""
+    try:
+        return raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    try:
+        return raw_bytes.decode("cp1252")
+    except UnicodeDecodeError:
+        pass
+    if len(raw_bytes) >= 2 and (raw_bytes[:2] in (b"\xff\xfe", b"\xfe\xff")):
+        try:
+            return raw_bytes.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    return raw_bytes.decode("utf-8", errors="replace")
 
 
 def format_plain_markdown(text: str) -> str:
-    """Escape HTML, lalu **tebal** / *miring*, lalu tiap baris non-kosong -> <p>."""
+    """
+    Format teks novel ke HTML dengan dukungan aman untuk:
+      - Penulisan rumus kimia & matematika: H<sub>2</sub>O, H~2~O, 10<sup>5</sup>, x^2^
+      - Simbol & entitas HTML (&mdash;, &hellip;, &ldquo;, &deg;C, dll.)
+      - Tag inline aman: <sub>, <sup>, <strong>, <b>, <em>, <i>, <u>, <del>, <s>, <ruby>, <mark>, <code>
+      - Markdown format: **tebal**, *miring*, ~~coret~~, ==stabilo==, ~sub~, ^sup^, |kanji《furigana》
+      - Karakter spesial unicode & multi-bahasa tetap utuh
+      - Menetralisir tag berbahaya (<script>, <img>, <iframe>, dll.)
+    """
     if not text:
         return ""
-    safe = html.escape(text)
+
+    # 1. Unescape entitas HTML yang ada (mencegah double-escaping seperti &amp;mdash;)
+    text = html.unescape(text)
+
+    # 2. Lindungi tag inline yang aman sebelum escaping
+    placeholders = []
+
+    def _save_tag(m):
+        slash = m.group(1) or ""
+        raw_tag = m.group(2).lower()
+        if raw_tag in _ALLOWED_TAG_NAMES:
+            tag_name = _TAG_NORMALIZATION.get(raw_tag, raw_tag)
+            idx = len(placeholders)
+            if tag_name == "br":
+                placeholders.append("<br />")
+            else:
+                placeholders.append(f"<{slash}{tag_name}>")
+            return f"\x00TAG{idx}\x00"
+        return m.group(0)
+
+    tokenized = _RE_TAG.sub(_save_tag, text)
+
+    # 3. Escape semua karakter & tag selain yang sudah dilindungi
+    safe = html.escape(tokenized)
+
+    # 4. Parsing sintaks Markdown inline
+    safe = _RE_SUB.sub(r"<sub>\1</sub>", safe)
+    safe = _RE_SUP.sub(r"<sup>\1</sup>", safe)
+    safe = _RE_STRIKE.sub(r"<del>\1</del>", safe)
+    safe = _RE_MARK.sub(r"<mark>\1</mark>", safe)
+    safe = _RE_CODE.sub(r"<code>\1</code>", safe)
+    safe = _RE_RUBY.sub(r"<ruby>\1<rt>\2</rt></ruby>", safe)
     safe = _RE_BOLD.sub(r"<strong>\1</strong>", safe)
     safe = _RE_ITALIC.sub(r"<em>\1</em>", safe)
+
+    # 5. Kembalikan tag inline yang dilindungi (single-pass regex replacement)
+    if placeholders:
+        safe = _RE_PLACEHOLDER.sub(lambda m: placeholders[int(m.group(1))], safe)
+
+    # 6. Susun paragraf
     lines = safe.split("\n")
     return "\n".join(f'<p class="novel-paragraph">{line.strip()}</p>' for line in lines if line.strip())
-
 
 _MD_DIVIDER = re.compile(r"^---+\s*$", re.MULTILINE)
 _MD_TRANS_HEADER = re.compile(r"##\s*Hasil\s*Terjemahan", re.IGNORECASE)
@@ -187,12 +273,12 @@ def get_chapter_content(
     elif source == "md":
         p = Path(novel_folder) / ref
         if p.exists():
-            raw = p.read_text(encoding="utf-8", errors="replace")
+            raw = read_chapter_file(p)
             translation, original = _parse_md(raw)
     else:  # txt
         p = Path(novel_folder) / ref
         if p.exists():
-            raw = p.read_text(encoding="utf-8", errors="replace")
+            raw = read_chapter_file(p)
             translation = format_plain_markdown(raw)
             original = None
 

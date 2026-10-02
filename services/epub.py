@@ -24,6 +24,11 @@ def clear_epub_cache() -> None:
     """Bersihkan cache chapter list EPUB (berguna untuk testing / reset)."""
     _epub_chapters_cache.clear()
 
+_EPUB_ALLOWED_INLINE = {
+    "sub", "sup", "b", "strong", "i", "em", "u", "s", "del", "mark",
+    "small", "ruby", "rt", "rp", "code"
+}
+
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -32,16 +37,22 @@ class _TextExtractor(HTMLParser):
         self._skip = False
 
     def handle_starttag(self, tag, attrs):
-        if tag in ("script", "style"):
+        t = tag.lower()
+        if t in ("script", "style"):
             self._skip = True
-        elif tag in ("p", "div", "br", "h1", "h2", "h3", "h4", "li", "tr"):
+        elif t in ("p", "div", "br", "h1", "h2", "h3", "h4", "li", "tr", "section", "article"):
             self._parts.append("\n")
+        elif t in _EPUB_ALLOWED_INLINE and not self._skip:
+            self._parts.append(f"<{t}>")
 
     def handle_endtag(self, tag):
-        if tag in ("script", "style"):
+        t = tag.lower()
+        if t in ("script", "style"):
             self._skip = False
-        elif tag in ("p", "div", "h1", "h2", "h3", "h4", "li", "tr"):
+        elif t in ("p", "div", "h1", "h2", "h3", "h4", "li", "tr", "section", "article"):
             self._parts.append("\n")
+        elif t in _EPUB_ALLOWED_INLINE and not self._skip:
+            self._parts.append(f"</{t}>")
 
     def handle_data(self, data):
         if not self._skip:
@@ -55,19 +66,12 @@ class _TextExtractor(HTMLParser):
 
 
 def _strip_html_to_paragraphs(html_text: str) -> str:
-    """Escape & ubah jadi <p> per paragraf (konsisten dgn txt/md)."""
-    import html as _html
+    """Format isi bab EPUB ke <p class='novel-paragraph'> dengan tetap mempertahankan inline formatting (sub, sup, dll)."""
     ex = _TextExtractor()
     ex.feed(html_text)
     text = ex.text()
-    safe = _html.escape(text)
-    out = []
-    for line in safe.split("\n"):
-        line = line.strip()
-        if line:
-            out.append(f'<p class="novel-paragraph">{line}</p>')
-    return "\n".join(out)
-
+    from services.reader import format_plain_markdown
+    return format_plain_markdown(text)
 
 def _find_opf(zf: zipfile.ZipFile) -> str | None:
     # 1. container.xml

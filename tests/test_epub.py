@@ -38,6 +38,21 @@ def test_get_epub_chapter_removes_script(tmp_path: Path):
     assert "Epilog isi." in html
 
 
+def test_get_epub_chapter_preserves_sub_sup(tmp_path: Path):
+    ep = tmp_path / "formula.epub"
+    with zipfile.ZipFile(ep, "w") as z:
+        z.writestr("META-INF/container.xml",
+                   '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
+        z.writestr("OEBPS/content.opf",
+                   '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="d1" href="c1.xhtml"/></manifest><spine><itemref idref="d1"/></spine></package>')
+        z.writestr("OEBPS/c1.xhtml", "<html><head><title>Kimia</title></head><body><p>Air adalah H<sub>2</sub>O dan gas CO<sub>2</sub> serta volume 10<sup>3</sup> m<sup>3</sup>.</p></body></html>")
+
+    html = epub.get_epub_chapter(str(ep), 0)
+    assert "H<sub>2</sub>O" in html
+    assert "CO<sub>2</sub>" in html
+    assert "10<sup>3</sup>" in html
+    assert "m<sup>3</sup>" in html
+
 def test_epub_out_of_range(tmp_path: Path):
     ep = tmp_path / "book.epub"
     _make_epub(ep)

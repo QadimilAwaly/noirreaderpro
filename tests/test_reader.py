@@ -105,3 +105,67 @@ def test_indexed_corrupt_or_missing_index(tmp_path: Path):
     idx_file.write_text("NOT_JSON_DATA{{{", encoding="utf-8")
     content_corrupt = r.get_chapter_content(str(tmp_path), str(tmp_path), "nov_missing", ch)
     assert content_corrupt.translation == ""
+
+
+def test_format_h2o_subscripts_and_superscripts():
+    # 1. HTML sub/sup (e.g. H2O and CO2 and 10^5)
+    out_html = r.format_plain_markdown("Air adalah H<sub>2</sub>O dan gas CO<sub>2</sub>, daya 10<sup>5</sup>.")
+    assert "H<sub>2</sub>O" in out_html
+    assert "CO<sub>2</sub>" in out_html
+    assert "10<sup>5</sup>" in out_html
+
+    # 2. Markdown sub/sup (~2~ and ^2^)
+    out_md = r.format_plain_markdown("Rumus H~2~O dan x^2^ + y^3^ = z serta E = mc^2^.")
+    assert "H<sub>2</sub>O" in out_md
+    assert "x<sup>2</sup>" in out_md
+    assert "mc<sup>2</sup>" in out_md
+
+    # 3. Unicode subscripts and superscripts preserved intact
+    out_uni = r.format_plain_markdown("Formula: H₂O + CO₂ → H₂CO₃; x² + y³ = z⁴; ±5°C; ½ porsi.")
+    assert "H₂O" in out_uni
+    assert "CO₂" in out_uni
+    assert "H₂CO₃" in out_uni
+    assert "x² + y³ = z⁴" in out_uni
+    assert "±5°C" in out_uni
+    assert "½ porsi" in out_uni
+
+
+def test_format_html_entities_and_safe_tags():
+    # Entities unescape properly without double-escaping
+    out_entities = r.format_plain_markdown("&ldquo;Halo&rdquo; &mdash; tes&hellip; &nbsp; &deg;C")
+    assert "“Halo”" in out_entities
+    assert "—" in out_entities
+    assert "…" in out_entities
+    assert "°C" in out_entities
+
+    # Inline formatting: strikethrough, underline, highlight, ruby, code
+    out_fmt = r.format_plain_markdown("Teks <u>garis bawah</u>, ~~dicoret~~, ==stabilo==, |東雲《しののめ》, `stats: 100`.")
+    assert "<u>garis bawah</u>" in out_fmt
+    assert "<del>dicoret</del>" in out_fmt
+    assert "<mark>stabilo</mark>" in out_fmt
+    assert "<ruby>東雲<rt>しののめ</rt></ruby>" in out_fmt
+    assert "<code>stats: 100</code>" in out_fmt
+
+    # Unsafe tags like script or onerror are neutralized
+    out_xss = r.format_plain_markdown("<script>alert(1)</script> dan <img src=x onerror=alert(1)>")
+    assert "<script>" not in out_xss
+    assert "&lt;script&gt;" in out_xss
+    assert "&lt;img" in out_xss
+
+
+def test_read_chapter_file_encoding_fallbacks(tmp_path: Path):
+    # 1. UTF-8 with BOM
+    f_bom = tmp_path / "bom.txt"
+    f_bom.write_bytes("Chapter BOM: H₂O".encode("utf-8-sig"))
+    assert "H₂O" in r.read_chapter_file(f_bom)
+    assert "\ufeff" not in r.read_chapter_file(f_bom)
+
+    # 2. Windows-1252 / ANSI with em-dash and curly quotes
+    f_ansi = tmp_path / "ansi.txt"
+    # 0x97 = em-dash —, 0x93/0x94 = curly quotes “ ”, 0xb0 = degree °
+    f_ansi.write_bytes(b"Suhu 25\xb0C \x97 air H2O \x93reaksi\x94")
+    text_ansi = r.read_chapter_file(f_ansi)
+    assert "25°C" in text_ansi
+    assert "—" in text_ansi
+    assert "“reaksi”" in text_ansi
+    assert "\ufffd" not in text_ansi  # No replacement character error!
