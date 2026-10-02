@@ -25,6 +25,7 @@ ehthumbs.db
 
 # Device-specific config override — per-device storage, never share
 device_config.json
+config.json
 
 # Test artifacts (leave test source code; ignore only generated caches)
 .pytest_cache/

@@ -2,6 +2,7 @@
   "host": "127.0.0.1",
   "port": 3030,
   "library_roots": [
-    "./Novel_Library"
+    "./Novel_Library",
+    "/storage/emulated/0/Download/Sync/novel_translator/translated_novels"
   ]
 }
