@@ -281,16 +281,14 @@ def get_chapter_content(
         translation = get_epub_chapter(str(epub_path), int(epub_idx or 0))
         original = None
     elif source == "md":
-        p = Path(novel_folder) / ref
-        if p.exists():
-            raw = read_chapter_file(p)
+        raw = read_chapter_file(ch_p)
+        if raw:
             translation, original = _parse_md(raw)
     else:  # txt
-        p = Path(novel_folder) / ref
-        if p.exists():
-            raw = read_chapter_file(p)
+        raw = read_chapter_file(ch_p)
+        if raw:
             translation = format_plain_markdown(raw)
-            original = None
+        original = None
 
     content = ChapterContent(
         ref=ref,
