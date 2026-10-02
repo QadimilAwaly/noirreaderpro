@@ -30,15 +30,15 @@ _SAFE_NAME_RE = re.compile(r"[\\/:*?\"<>|]")
 
 
 @lru_cache(maxsize=512)
-def _progress_path(novel_folder: str) -> Path:
-    name = Path(novel_folder).name
+def _progress_path(novel_folder: str) -> tuple[Path, str]:
+    name = os.path.basename(novel_folder)
     safe = _SAFE_NAME_RE.sub("", name).strip() or "novel"
-    return Path(novel_folder) / f"{_PREFIX}{safe}_progress.json"
+    p = Path(novel_folder) / f"{_PREFIX}{safe}_progress.json"
+    return p, str(p)
 
 
 def load_progress(novel_folder: str) -> Progress:
-    path = _progress_path(novel_folder)
-    path_key = str(path)
+    path, path_key = _progress_path(novel_folder)
     try:
         mtime = path.stat().st_mtime_ns
     except (FileNotFoundError, OSError):
@@ -74,8 +74,7 @@ def load_progress(novel_folder: str) -> Progress:
 
 def save_progress(novel_folder: str, progress: Progress) -> None:
     progress.bookmarks.sort(key=lambda b: b.chapter_index)
-    path = _progress_path(novel_folder)
-    path_key = str(path)
+    path, path_key = _progress_path(novel_folder)
 
     cached = _progress_cache.get(path_key)
     if cached is not None:
@@ -96,7 +95,7 @@ def save_progress(novel_folder: str, progress: Progress) -> None:
         return
     safe_save_json(path, payload)
     try:
-        mtime = path.stat().st_mtime_ns
+        mtime = os.stat(path_key).st_mtime_ns
     except OSError:
         mtime = 0
     cached_prog = Progress(
