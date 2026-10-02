@@ -34,7 +34,7 @@ def _folder_for(novel_id: str) -> str:
 def get_progress(novel_id: str = Query(...)):
     folder = _folder_for(novel_id)
     prog = prog_service.load_progress(folder)
-    return prog.model_dump()
+    return prog.to_dict()
 
 
 @router.post("/progress")
@@ -75,7 +75,7 @@ def mark_read(novel_id: str = Query(...), req: BookmarkRequest = None):
                     changed = True
     if changed:
         prog_service.save_progress(folder, prog)
-    return prog.model_dump()
+    return prog.to_dict()
 
 
 @router.delete("/bookmark")
