@@ -6,6 +6,7 @@ Mengikuti standar: cari .opf (content.opf) -> spine -> urutan doc xhtml -> ekstr
 """
 from __future__ import annotations
 
+import os
 import re
 import zipfile
 from html.parser import HTMLParser
@@ -19,11 +20,12 @@ _OPF_NS = {
 
 # In-memory cache for parsed EPUB chapter titles: path -> (mtime_ns, titles_list)
 _epub_chapters_cache: dict[str, tuple[int, list[str]]] = {}
+_epub_spine_cache: dict[str, tuple[int, list[str]]] = {}
 
 def clear_epub_cache() -> None:
     """Bersihkan cache chapter list EPUB (berguna untuk testing / reset)."""
     _epub_chapters_cache.clear()
-
+    _epub_spine_cache.clear()
 _EPUB_ALLOWED_INLINE = {
     "sub", "sup", "b", "strong", "i", "em", "u", "s", "del", "mark",
     "small", "ruby", "rt", "rp", "code"
@@ -157,7 +159,7 @@ def _doc_title(zf: zipfile.ZipFile, doc_path: str) -> str | None:
 def list_epub_chapters(epub_path: str) -> list[str]:
     """Kembalikan daftar judul chapter (untuk daftar di sidebar), di-cache berdasarkan mtime file."""
     try:
-        p = Path(epub_path).resolve()
+        p = Path(epub_path)
         mtime = p.stat().st_mtime_ns
     except OSError:
         return []
@@ -184,11 +186,22 @@ def list_epub_chapters(epub_path: str) -> list[str]:
 
 def get_epub_chapter(epub_path: str, index: int) -> str:
     """Kembalikan HTML <p> chapter ke-index (1 file epub = banyak chapter)."""
+    try:
+        mtime = os.stat(epub_path).st_mtime_ns
+    except OSError:
+        mtime = 0
+
+    cached_spine = _epub_spine_cache.get(epub_path)
     with zipfile.ZipFile(epub_path) as zf:
-        opf = _find_opf(zf)
-        if not opf:
-            return '<p class="novel-paragraph">(EPUB rusak: tidak ada OPF)</p>'
-        docs = _spine_order(zf, opf)
+        if cached_spine is not None and cached_spine[0] == mtime:
+            docs = cached_spine[1]
+        else:
+            opf = _find_opf(zf)
+            if not opf:
+                return '<p class="novel-paragraph">(EPUB rusak: tidak ada OPF)</p>'
+            docs = _spine_order(zf, opf)
+            _epub_spine_cache[epub_path] = (mtime, docs)
+
         if index < 0 or index >= len(docs):
             return '<p class="novel-paragraph">(Chapter tidak ditemukan)</p>'
         doc = docs[index]
