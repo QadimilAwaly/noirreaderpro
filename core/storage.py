@@ -12,6 +12,7 @@ import tempfile
 import threading
 from pathlib import Path
 
+_PID = os.getpid()
 _locks: dict[str, threading.Lock] = {}
 _locks_guard = threading.Lock()
 
@@ -24,35 +25,44 @@ def _lock_for(path: str) -> threading.Lock:
 
 
 def safe_save_json(filepath: str | Path, data: dict) -> None:
-    filepath = Path(filepath)
-    parent = filepath.parent
-    if not parent.exists():
-        parent.mkdir(parents=True, exist_ok=True)
-    lock = _lock_for(str(filepath))
+    f_str = str(filepath)
+    lock = _lock_for(f_str)
     payload_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    tmp_path = filepath.with_suffix(filepath.suffix + f".tmp_{os.getpid()}")
+    tmp_path = f_str + f".tmp_{_PID}"
     with lock:
         try:
             with open(tmp_path, "wb") as f:
                 f.write(payload_bytes)
-            os.replace(tmp_path, filepath)
+        except FileNotFoundError:
+            parent = os.path.dirname(f_str)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(tmp_path, "wb") as f:
+                f.write(payload_bytes)
         except Exception:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
             raise
 
+        try:
+            os.replace(tmp_path, f_str)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+
+
 def load_json(filepath: str | Path, default: dict | None = None) -> dict:
-    filepath = Path(filepath)
-    if not filepath.exists():
-        return default if default is not None else {}
-    lock = _lock_for(str(filepath))
+    f_str = str(filepath)
+    lock = _lock_for(f_str)
     with lock:
         try:
-            with filepath.open("r", encoding="utf-8") as f:
+            with open(f_str, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else (default or {})
-        except (json.JSONDecodeError, OSError, ValueError):
+        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
             return default if default is not None else {}
