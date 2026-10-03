@@ -169,3 +169,43 @@ def test_read_chapter_file_encoding_fallbacks(tmp_path: Path):
     assert "—" in text_ansi
     assert "“reaksi”" in text_ansi
     assert "\ufffd" not in text_ansi  # No replacement character error!
+
+
+def test_latex_math_inline_and_display():
+    # 1. Exact user screenshot case: $E = mc^2$ and $E$, $m$, $c$
+    raw = (
+        "even to ordinary people on Earth.\n\n"
+        "$E = mc^2$\n\n"
+        "$E$: Energy, $m$: Mass, $c$: Speed of light"
+    )
+    out = r.format_plain_markdown(raw)
+    assert 'class="math-inline"' in out
+    assert "<var>E</var> = <var>m</var><var>c</var><sup>2</sup>" in out
+    assert "<var>E</var></span>: Energy" in out
+    assert "<var>m</var></span>: Mass" in out
+    assert "<var>c</var></span>: Speed of light" in out
+
+    # 2. Chemical formulas in math notation ($H_2O$, $CO_2$)
+    out_chem = r.format_plain_markdown("Rumus: $H_2O$ dan $CO_2$.")
+    assert "<var>H</var><sub>2</sub><var>O</var>" in out_chem
+    assert "<var>C</var><var>O</var><sub>2</sub>" in out_chem
+
+    # 3. Fractions, square roots, and greek symbols
+    out_symbols = r.format_plain_markdown(r"Formula: $\frac{a}{b}$ dan $\sqrt{x^2 + y^2}$ serta $\Delta E = \Delta m \cdot c^2$.")
+    assert '<span class="math-frac">' in out_symbols
+    assert '<span class="math-num"><var>a</var></span>' in out_symbols
+    assert '<span class="math-den"><var>b</var></span>' in out_symbols
+    assert '<span class="math-sqrt-wrap">' in out_symbols
+    assert "Δ" in out_symbols
+    assert "·" in out_symbols
+
+    # 4. Currency protection (must not be parsed as math)
+    out_currency = r.format_plain_markdown("Buku ini seharga $100 atau $50 saja.")
+    assert "math-inline" not in out_currency
+    assert "$100" in out_currency
+    assert "$50" in out_currency
+
+    # 5. Display math: $$E = mc^2$$
+    out_display = r.format_plain_markdown("Teori relativitas:\n$$E = mc^2$$")
+    assert '<div class="math-display">' in out_display
+    assert "<var>E</var> = <var>m</var><var>c</var><sup>2</sup>" in out_display

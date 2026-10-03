@@ -568,6 +568,64 @@ body.collapse-chapters .col-chapters {
   padding: 1px 4px;
   border-radius: 3px;
 }
+
+/* Math & LaTeX Typography */
+.math-inline {
+  display: inline-block;
+  vertical-align: baseline;
+  padding: 0 0.15em;
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Noto Serif", Georgia, serif;
+}
+
+.math-display {
+  display: block;
+  text-align: center;
+  margin: 1.2em 0;
+  overflow-x: auto;
+  padding: 0.5em 0;
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Noto Serif", Georgia, serif;
+}
+
+.math-inline var,
+.math-display var {
+  font-style: italic;
+  font-family: inherit;
+}
+
+.math-text {
+  font-style: normal;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: center;
+  font-size: 0.88em;
+  padding: 0 0.2em;
+}
+
+.math-num {
+  border-bottom: 1px solid currentColor;
+  padding: 0 0.15em;
+  display: inline-block;
+}
+
+.math-den {
+  padding: 0 0.15em;
+  display: inline-block;
+}
+
+.math-sqrt-wrap {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.math-sqrt {
+  border-top: 1px solid currentColor;
+  padding: 0 0.15em;
+}
 .original-block {
   margin-top: 2em;
   padding-top: 1.2em;

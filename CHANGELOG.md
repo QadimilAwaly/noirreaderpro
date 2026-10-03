@@ -3,6 +3,7 @@
 ## 1.2.0 (2026-10-02)
 
 ### Fitur Baru & Tipografi
+- **Dukungan Penuh LaTeX Math:** Rendering otomatis formula ilmiah inline (`$E = mc^2$`, `$E$`, `$m$`, `$c$`, `$H_2O$`) dan display block (`$$...$$`) menjadi HTML semantik (`<var>`, `<sup>`, `<sub>`, pecahan `\frac`, akar `\sqrt`, simbol Yunani `\alpha`, `\beta`, `\Delta`, operator `\pm`, `\times`, `\cdot`, `\leq`, `\approx`, dll.) yang bekerja 100% offline tanpa dependensi eksternal, lengkap dengan proteksi nilai mata uang (`$100`).
 - **Dukungan Rumus Kimia & Formula:** Format penulisan formula kimia seperti `H<sub>2</sub>O`, `CO<sub>2</sub>`, dan markdown subscript `H~2~O` serta superscript `10^5^` / `x^2^` ditampilkan rapi dengan perataan baseline proporsional tanpa merusak tinggi baris (*line-height*).
 - **Dukungan Entitas HTML & Simbol Khusus:** Konversi otomatis entitas HTML hasil terjemahan/web scraping (`&mdash;`, `&hellip;`, `&ldquo;`, `&rdquo;`, `&deg;C`, dll.) menjadi karakter Unicode asli.
 - **Tipografi Lanjutan:** Dukungan inline formatting untuk `<u>garis bawah</u>`, `<del>coret</del>`, `<mark>stabilo</mark>`, `` `kode` ``, dan furigana/ruby khas novel (`<ruby>漢字<rt>かんじ</rt></ruby>` dan `|漢字《かんじ》`).

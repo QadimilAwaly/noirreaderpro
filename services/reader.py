@@ -29,7 +29,8 @@ def clear_reader_cache() -> None:
 
 _ALLOWED_TAG_NAMES = {
     "sub", "sup", "strong", "b", "em", "i", "u", "s", "del", "strike",
-    "mark", "small", "ruby", "rt", "rp", "code", "br"
+    "mark", "small", "ruby", "rt", "rp", "code", "br",
+    "span", "div", "var"
 }
 
 _TAG_NORMALIZATION = {
@@ -50,6 +51,98 @@ _RE_MARK = re.compile(r"==(.+?)==")
 _RE_CODE = re.compile(r"`([^`\n]+)`")
 _RE_PLACEHOLDER = re.compile(r"\x00TAG(\d+)\x00")
 
+_LATEX_SYMBOLS = {
+    # Greek lowercase
+    r"\alpha": "α", r"\beta": "β", r"\gamma": "γ", r"\delta": "δ",
+    r"\epsilon": "ε", r"\varepsilon": "ε", r"\zeta": "ζ", r"\eta": "η",
+    r"\theta": "θ", r"\vartheta": "θ", r"\iota": "ι", r"\kappa": "κ",
+    r"\lambda": "λ", r"\mu": "μ", r"\nu": "ν", r"\xi": "ξ",
+    r"\pi": "π", r"\varpi": "ϖ", r"\rho": "ρ", r"\varrho": "ϱ",
+    r"\sigma": "σ", r"\varsigma": "ς", r"\tau": "τ", r"\upsilon": "υ",
+    r"\phi": "φ", r"\varphi": "ϕ", r"\chi": "χ", r"\psi": "ψ",
+    r"\omega": "ω",
+    # Greek uppercase
+    r"\Gamma": "Γ", r"\Delta": "Δ", r"\Theta": "Θ", r"\Lambda": "Λ",
+    r"\Xi": "Ξ", r"\Pi": "Π", r"\Sigma": "Σ", r"\Upsilon": "Υ",
+    r"\Phi": "Φ", r"\Psi": "Ψ", r"\Omega": "Ω",
+    # Math operators & relations
+    r"\pm": "±", r"\mp": "∓", r"\times": "×", r"\div": "÷",
+    r"\cdot": "·", r"\ast": "∗", r"\star": "⋆", r"\circ": "∘",
+    r"\bullet": "•",
+    r"\leq": "≤", r"\le": "≤", r"\geq": "≥", r"\ge": "≥",
+    r"\neq": "≠", r"\ne": "≠", r"\approx": "≈", r"\sim": "∼",
+    r"\equiv": "≡", r"\propto": "∝", r"\ll": "≪", r"\gg": "≫",
+    # Arrows & sets
+    r"\to": "→", r"\rightarrow": "→", r"\leftarrow": "←",
+    r"\Rightarrow": "⇒", r"\Leftarrow": "⇐", r"\Leftrightarrow": "⇔",
+    r"\leftrightarrow": "↔",
+    r"\forall": "∀", r"\exists": "∃", r"\in": "∈", r"\notin": "∉",
+    r"\subset": "⊂", r"\subseteq": "⊆", r"\cup": "∪", r"\cap": "∩",
+    r"\nabla": "∇", r"\partial": "∂", r"\infty": "∞",
+    # Dots & spacing
+    r"\dots": "…", r"\cdots": "…", r"\ldots": "…", r"\vdots": "⋮", r"\ddots": "⋱",
+    r"\quad": "  ", r"\qquad": "    ", r"\,": " ", r"\;": " ", r"\!": "",
+}
+
+_RE_DISPLAY_MATH = re.compile(r"\$\$(.+?)\$\$", re.DOTALL)
+_RE_INLINE_MATH = re.compile(r"(?<!\\)\$(?!\s)([^$\n\r]+?)(?<!\s|\$)\$")
+_RE_MATH_FRAC = re.compile(r"\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}")
+_RE_MATH_SQRT_N = re.compile(r"\\sqrt\s*\[([^\[\]]+)\]\s*\{([^{}]+)\}")
+_RE_MATH_SQRT = re.compile(r"\\sqrt\s*\{([^{}]+)\}")
+_RE_MATH_TEXT = re.compile(r"\\(?:text|mathrm|mathbf|mathit)\s*\{([^{}]+)\}")
+_RE_MATH_SUP_BRACES = re.compile(r"\^\{([^{}]+)\}")
+_RE_MATH_SUP_CHAR = re.compile(r"\^([a-zA-Z0-9\+\-\=])")
+_RE_MATH_SUB_BRACES = re.compile(r"\_\{([^{}]+)\}")
+_RE_MATH_SUB_CHAR = re.compile(r"\_([a-zA-Z0-9\+\-\=])")
+
+
+def render_latex_math_inner(tex: str) -> str:
+    """Konversi ekspresi TeX sederhana ke HTML semantik yang rapi & ringan."""
+    s = tex.strip()
+    s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    text_blocks = []
+    def _save_text(m):
+        idx = len(text_blocks)
+        text_blocks.append(f'<span class="math-text">{m.group(1)}</span>')
+        return f"\x01TXT{idx}\x01"
+    s = _RE_MATH_TEXT.sub(_save_text, s)
+
+    for cmd, sym in sorted(_LATEX_SYMBOLS.items(), key=lambda x: len(x[0]), reverse=True):
+        if cmd in s:
+            s = s.replace(cmd, sym)
+
+    # Sqrt & Fractions
+    s = _RE_MATH_SQRT_N.sub(r'<span class="math-sqrt-wrap"><sup>\1</sup>√<span class="math-sqrt">\2</span></span>', s)
+    s = _RE_MATH_SQRT.sub(r'<span class="math-sqrt-wrap">√<span class="math-sqrt">\1</span></span>', s)
+    for _ in range(3):
+        if r"\frac" not in s:
+            break
+        s = _RE_MATH_FRAC.sub(r'<span class="math-frac"><span class="math-num">\1</span><span class="math-den">\2</span></span>', s)
+
+    # Superscript & Subscript
+    s = _RE_MATH_SUP_BRACES.sub(r"<sup>\1</sup>", s)
+    s = _RE_MATH_SUP_CHAR.sub(r"<sup>\1</sup>", s)
+    s = _RE_MATH_SUB_BRACES.sub(r"<sub>\1</sub>", s)
+    s = _RE_MATH_SUB_CHAR.sub(r"<sub>\1</sub>", s)
+
+    # Clean remaining standalone braces
+    s = re.sub(r"\{([^{}]+)\}", r"\1", s)
+
+    # Italicize standalone alphabetic variables outside tags/text
+    def _italicize(m):
+        c = m.group(0)
+        return f"<var>{c}</var>"
+
+    parts = re.split(r"(<[^>]+>|\x01TXT\d+\x01)", s)
+    for i in range(0, len(parts), 2):
+        parts[i] = re.sub(r"[a-zA-Z]", _italicize, parts[i])
+    s = "".join(parts)
+
+    for idx, t_html in enumerate(text_blocks):
+        s = s.replace(f"\x01TXT{idx}\x01", t_html)
+
+    return s
 
 def read_chapter_file(p: Path) -> str:
     """Baca isi file teks novel dengan penanganan encoding cerdas (UTF-8, UTF-8-BOM, CP1252/ANSI, UTF-16)."""
@@ -90,8 +183,31 @@ def format_plain_markdown(text: str) -> str:
     if "&" in text:
         text = html.unescape(text)
 
-    # 2. Lindungi tag inline yang aman sebelum escaping (hanya jika ada tanda '<')
     placeholders = []
+
+    # 2. Parsing LaTeX math: $$...$$ (display) dan $...$ (inline)
+    if "$" in text:
+        def _display_repl(m):
+            inner = m.group(1)
+            rendered = render_latex_math_inner(inner)
+            idx = len(placeholders)
+            placeholders.append(f'<div class="math-display">{rendered}</div>')
+            return f"\x00TAG{idx}\x00"
+
+        def _inline_repl(m):
+            inner = m.group(1)
+            # Hindari false-positive mata uang seperti $100 atau $50.00
+            if re.match(r"^\d+(?:,\d+)*(?:\.\d+)?$", inner.strip()):
+                return m.group(0)
+            rendered = render_latex_math_inner(inner)
+            idx = len(placeholders)
+            placeholders.append(f'<span class="math-inline">{rendered}</span>')
+            return f"\x00TAG{idx}\x00"
+
+        text = _RE_DISPLAY_MATH.sub(_display_repl, text)
+        text = _RE_INLINE_MATH.sub(_inline_repl, text)
+
+    # 3. Lindungi tag inline yang aman sebelum escaping (hanya jika ada tanda '<')
     if "<" in text:
         def _save_tag(m):
             slash = m.group(1) or ""
@@ -99,7 +215,10 @@ def format_plain_markdown(text: str) -> str:
             if raw_tag in _ALLOWED_TAG_NAMES:
                 tag_name = _TAG_NORMALIZATION.get(raw_tag, raw_tag)
                 idx = len(placeholders)
-                if tag_name == "br":
+                full_match = m.group(0)
+                if raw_tag in ("span", "div", "var"):
+                    placeholders.append(full_match)
+                elif tag_name == "br":
                     placeholders.append("<br />")
                 else:
                     placeholders.append(f"<{slash}{tag_name}>")
@@ -107,10 +226,10 @@ def format_plain_markdown(text: str) -> str:
             return m.group(0)
         text = _RE_TAG.sub(_save_tag, text)
 
-    # 3. Escape semua karakter & tag selain yang sudah dilindungi
+    # 4. Escape semua karakter & tag selain yang sudah dilindungi
     safe = html.escape(text)
 
-    # 4. Parsing sintaks Markdown inline (short-circuit: lewati regex jika karakter pemicu tidak ada)
+    # 5. Parsing sintaks Markdown inline (short-circuit: lewati regex jika karakter pemicu tidak ada)
     if "~" in safe:
         safe = _RE_SUB.sub(r"<sub>\1</sub>", safe)
         safe = _RE_STRIKE.sub(r"<del>\1</del>", safe)
