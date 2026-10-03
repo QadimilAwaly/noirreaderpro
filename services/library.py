@@ -89,18 +89,36 @@ def _try_indexed(root: str) -> List[NovelInfo] | None:
     # kelompokkan chapters per novel_id
     by_novel: dict[str, list] = {}
     for c in chapters_raw:
-        by_novel.setdefault(c.get("novel_id", ""), []).append(c)
+        cid = str(c.get("novel_id", "") or "")
+        by_novel.setdefault(cid, []).append(c)
+        alt_id = _novel_id(cid)
+        if alt_id != cid:
+            by_novel.setdefault(alt_id, []).append(c)
 
     out: List[NovelInfo] = []
     for n in novels_raw:
-        nid = n.get("id") or _novel_id(n.get("folder_path", n.get("judul", "")))
-        chaps = by_novel.get(nid, [])
-        has_orig = any((c.get("teks_asli") or "").strip() for c in chaps)
+        raw_id = n.get("id")
+        nid = str(raw_id) if raw_id is not None else _novel_id(n.get("folder_path", n.get("judul", "")))
+        chaps = by_novel.get(nid) or by_novel.get(_novel_id(nid)) or []
+        if not chaps and "_" in nid:
+            for k in by_novel:
+                if nid.startswith(k) or k.startswith(nid):
+                    chaps = by_novel[k]
+                    break
+
         fp = n.get("folder_path", "")
         if fp and not Path(fp).is_absolute():
             fp = str((Path(root) / fp).resolve())
         if not fp:
             fp = str(Path(root) / n.get("judul", "novel"))
+
+        # Fallback: jika di library_index.json tidak ada chapters untuk novel ini, periksa isi folder fisik di disk!
+        if not chaps and os.path.isdir(fp):
+            disk_chaps = build_chapter_list(fp, novel_id=nid, root=root)
+            if disk_chaps:
+                chaps = disk_chaps
+
+        has_orig = any((c.get("teks_asli") if isinstance(c, dict) else c.has_original) for c in chaps)
 
         out.append(NovelInfo(
             id=nid,

@@ -73,8 +73,23 @@ export async function loadChapters(novelId) {
     state.chapters = data.chapters || [];
     state.bookmarks = data.bookmarks || [];
     state.readSet = new Set(state.bookmarks.map(b => b.chapter_index));
-
     if (elChapterCount) elChapterCount.textContent = String(state.chapters.length);
+
+    // Sinkronisasi chapter count ke state.novels dan kartu DOM jika berbeda
+    if (state.activeNovelId && state.chapters.length > 0) {
+      const activeNovel = state.novels.find(n => n.id === state.activeNovelId);
+      if (activeNovel && activeNovel.chapter_count !== state.chapters.length) {
+        activeNovel.chapter_count = state.chapters.length;
+        const cardEl = document.querySelector(`.novel-card[data-id="${activeNovel.id}"]`);
+        if (cardEl) {
+          const countSpan = cardEl.querySelector(".nv-meta span:first-child");
+          if (countSpan) {
+            countSpan.textContent = `${activeNovel.chapter_count} chapter`;
+          }
+          cardEl.setAttribute("aria-label", `${activeNovel.judul}, ${activeNovel.chapter_count} chapter`);
+        }
+      }
+    }
     renderChapterCards();
     renderBookmarks();
 

@@ -161,3 +161,28 @@ def test_natural_sort_key_mixed_types(tmp_path: Path):
     titles = [n.judul for n in novels]
     # Numeric names sort first naturally: 2_Novel before 100_Novel, followed by Alpha Novel, My Novel
     assert titles == ["2_Novel", "100_Novel", "Alpha Novel", "My Novel"]
+
+
+def test_indexed_novel_fallback_to_disk_chapters(tmp_path: Path):
+    import json
+    lib.clear_library_cache()
+    root = tmp_path / "indexed_disk_fallback"
+    root.mkdir()
+    novel_dir = root / "Water-Attribute Magician"
+    novel_dir.mkdir()
+    for i in range(1, 97):
+        (novel_dir / f"Chapter_{i:02d}.txt").write_text(f"Bab {i}", encoding="utf-8")
+
+    # library_index.json lists the novel, but chapters list is empty in JSON
+    index_file = root / "library_index.json"
+    index_file.write_text(json.dumps({
+        "novels": [
+            {"id": "water-attribute-magician", "judul": "Water-Attribute Magician", "folder_path": "Water-Attribute Magician"}
+        ],
+        "chapters": []
+    }), encoding="utf-8")
+
+    novels = lib.load_library(str(root))
+    assert len(novels) == 1
+    assert novels[0].judul == "Water-Attribute Magician"
+    assert novels[0].chapter_count == 96

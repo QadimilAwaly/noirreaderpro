@@ -85,6 +85,7 @@ export function renderNovels() {
     div.className = "novel-card" + (isActive ? " active" : "");
     div.setAttribute("role", "button");
     div.setAttribute("tabindex", "0");
+    div.setAttribute("data-id", n.id);
     div.setAttribute("aria-label", `${n.judul}, ${n.chapter_count} chapter`);
 
     div.innerHTML = `

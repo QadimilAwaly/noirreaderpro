@@ -11,9 +11,10 @@
 - **Dukungan Sub/Sup pada EPUB:** Ekstraksi bab EPUB kini mempertahankan tag inline formatting (`<sub>`, `<sup>`, dll.).
 
 ### Perbaikan Bug
+- **Perbaikan Perhitungan Chapter Count:** Menyelesaikan bug di mana novel terindeks yang memiliki bab di folder fisik disk menampilkan '0 chapter' di kartu novel (kini otomatis memeriksa folder fisik dan menyinkronkan jumlah bab ke kartu DOM).
 - **Eliminasi Auto-Advance saat Reopen/Reload:** Menghapus fungsi background prefetching spekulatif yang berpotensi memajukan posisi baca ke bab berikutnya.
 - **Preservasi Bab Aktif saat Resume:** Memastikan posisi baca terakhir (`current_chapter_index`) selalu dipertahankan secara akurat saat memuat ulang halaman atau membuka kembali aplikasi.
-- **Bypass Browser Static Asset Cache:** Menambahkan query string versi (`?v=1.2.0`) pada file JavaScript dan CSS di antarmuka web untuk mencegah peramban menggunakan kode usang dari cache.
+- **Bypass Browser Static Asset Cache:** Menambahkan query string versi (`?v=1.2.1`) pada file JavaScript dan CSS di antarmuka web untuk mencegah peramban menggunakan kode usang dari cache.
 
 ### Performa & Efisiensi Daya (Autoresearch Sesi #2)
 - **-23.1% Total Latency Reduction:** Waktu respons terpangkas dari 10,328ms ke 7,943ms.
