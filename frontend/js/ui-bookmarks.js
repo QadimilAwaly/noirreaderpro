@@ -1,9 +1,8 @@
 // Panel "Chapter Dibaca" (auto-bookmark riwayat membaca).
 import { state } from "./state.js";
 import { api } from "./api.js";
-import { escapeHtml } from "./util.js";
+import { escapeHtml, showToast } from "./util.js";
 import { openChapter } from "./ui-reader.js";
-import { showToast } from "./main.js";
 
 const panel = document.getElementById("bookmarks-panel");
 const btnBm = document.getElementById("btn-bookmarks");

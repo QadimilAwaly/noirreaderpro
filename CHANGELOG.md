@@ -11,11 +11,13 @@
 - **Dukungan Sub/Sup pada EPUB:** Ekstraksi bab EPUB kini mempertahankan tag inline formatting (`<sub>`, `<sup>`, dll.).
 
 ### Perbaikan Bug
+- **Perbaikan Bilah Navigasi Tersembunyi pada Layar Ponsel:** Menyelesaikan bug di mana bilah navigasi bab (`.reader-toolbar`) masuk dan tersembunyi di balik header atas (`.topbar`) saat halaman digulir pada perangkat mobile. Mengunci viewport dengan `100dvh` dan `overflow: hidden` pada `html`/`body`, serta mengubah container bacaan menjadi flexbox adaptif (`flex: 1; min-height: 0; overflow-y: auto;`) sehingga bilah navigasi bab selalu terpasang (*pinned*) rapi di atas teks.
+- **Navigasi Bab di Bagian Bawah Teks:** Menambahkan bilah navigasi bab (`.reader-bottom-nav`) di akhir teks bacaan untuk kemudahan berpindah bab berikutnya/sebelumnya tanpa perlu menggulir kembali ke atas pada layar ponsel.
+- **Eliminasi Circular Dependency & Cache Busting:** Memindahkan fungsi `showToast` ke `util.js` untuk memutus dependensi sirkular ES module dan memperbarui query versi aset ke `v=1.2.2`.
 - **Perbaikan Perhitungan Chapter Count:** Menyelesaikan bug di mana novel terindeks yang memiliki bab di folder fisik disk menampilkan '0 chapter' di kartu novel (kini otomatis memeriksa folder fisik dan menyinkronkan jumlah bab ke kartu DOM).
 - **Eliminasi Auto-Advance saat Reopen/Reload:** Menghapus fungsi background prefetching spekulatif yang berpotensi memajukan posisi baca ke bab berikutnya.
 - **Preservasi Bab Aktif saat Resume:** Memastikan posisi baca terakhir (`current_chapter_index`) selalu dipertahankan secara akurat saat memuat ulang halaman atau membuka kembali aplikasi.
-- **Bypass Browser Static Asset Cache:** Menambahkan query string versi (`?v=1.2.1`) pada file JavaScript dan CSS di antarmuka web untuk mencegah peramban menggunakan kode usang dari cache.
-
+- **Bypass Browser Static Asset Cache:** Menambahkan query string versi (`?v=1.2.2`) pada file JavaScript dan CSS di antarmuka web untuk mencegah peramban menggunakan kode usang dari cache.
 ### Performa & Efisiensi Daya (Autoresearch Sesi #2)
 - **-23.1% Total Latency Reduction:** Waktu respons terpangkas dari 10,328ms ke 7,943ms.
 - **-21.7% Active CPU Time Reduction:** Menghemat daya baterai perangkat Android Termux & desktop secara drastis.

@@ -44,13 +44,24 @@ body.theme-dark {
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   height: 100%;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
 }
 
 body {
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
   font-family: "Iowan Old Style", "Palatino Linotype", "Inter", "Segoe UI", Georgia, -apple-system, BlinkMacSystemFont, "Noto Serif", "Noto Sans", system-ui, serif, sans-serif;
   background: var(--bg);
   color: var(--fg);

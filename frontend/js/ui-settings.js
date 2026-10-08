@@ -1,7 +1,7 @@
 // Panel pengaturan tampilan + tema + lebar baca.
 import { state } from "./state.js";
 import { api } from "./api.js";
-import { showToast } from "./main.js";
+import { showToast } from "./util.js";
 
 const panel = document.getElementById("settings-panel");
 const btnSettings = document.getElementById("btn-settings");

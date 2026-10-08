@@ -1,10 +1,9 @@
 // Render isi chapter + navigasi + toggle asli + auto-bookmark saat dibuka.
 import { state } from "./state.js";
 import { api } from "./api.js";
-import { escapeHtml } from "./util.js";
+import { escapeHtml, showToast } from "./util.js";
 import { setStatus } from "./ui-library.js";
 import { renderBookmarks } from "./ui-bookmarks.js";
-import { showToast } from "./main.js";
 
 const elContent = document.getElementById("reader-content");
 const elToolbar = document.getElementById("reader-toolbar");
@@ -347,8 +346,32 @@ function renderContent(data) {
   if (state.showOriginal && data.original) {
     html += `<div class="original-block"><h4>Teks Asli</h4>${data.original}</div>`;
   }
+
+  // Navigasi bab di bagian bawah teks bacaan
+  const hasPrev = data.index > 0;
+  const hasNext = data.index < data.total - 1;
+  html += `
+    <nav class="reader-bottom-nav" aria-label="Navigasi bab berikutnya dan sebelumnya">
+      <button class="btn btn-bottom-nav btn-bottom-prev" id="btn-bottom-prev" ${hasPrev ? "" : "disabled"} title="Chapter sebelumnya (←)" aria-label="Chapter sebelumnya">
+        ‹ Chapter Sebelumnya
+      </button>
+      <span class="bottom-nav-pos">${data.index + 1} / ${data.total}</span>
+      <button class="btn btn-bottom-nav btn-bottom-next" id="btn-bottom-next" ${hasNext ? "" : "disabled"} title="Chapter berikutnya (→)" aria-label="Chapter berikutnya">
+        Chapter Berikutnya ›
+      </button>
+    </nav>
+  `;
   html += "</div>";
   elContent.innerHTML = html;
+
+  const btnBottomPrev = document.getElementById("btn-bottom-prev");
+  if (btnBottomPrev && hasPrev) {
+    btnBottomPrev.onclick = () => navigate(-1);
+  }
+  const btnBottomNext = document.getElementById("btn-bottom-next");
+  if (btnBottomNext && hasNext) {
+    btnBottomNext.onclick = () => navigate(1);
+  }
 }
 
 export function navigate(dir) {

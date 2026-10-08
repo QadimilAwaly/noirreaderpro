@@ -5,23 +5,7 @@ import { openChapter, navigate } from "./ui-reader.js";
 import { initSettings, toggleTheme, toggleSettings, closeSettings } from "./ui-settings.js";
 import { toggleBookmarks, closeBookmarks } from "./ui-bookmarks.js";
 
-let toastTimer = null;
-
-export function showToast(msg, type = "info") {
-  const t = document.getElementById("toast");
-  if (!t) return;
-
-  t.textContent = msg;
-  t.className = "toast" + (type ? ` toast-${type}` : "");
-  t.hidden = false;
-  t.style.opacity = "1";
-
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.style.opacity = "0";
-    setTimeout(() => { t.hidden = true; }, 250);
-  }, 3200);
-}
+export { showToast } from "./util.js";
 
 // Sidebars & Collapsing logic
 const sidebarBackdrop = document.getElementById("sidebar-backdrop");
